@@ -1,0 +1,506 @@
+#!/usr/bin/env python3
+"""
+link-to-project.py - 将当前项目的 .claude 配置软链接到目标项目
+
+功能：
+  1. 软链接 claude_settings.local.json 到目标项目的 .claude/settings.local.json
+  2. 软链接 .claude/rules 目录到目标项目
+  3. 软链接 .claude/hooks 目录到目标项目
+  4. 记录已链接的项目到 .claude/linked-projects.json
+
+Usage:
+    ./link-to-project.py <target_project_path>
+
+Example:
+    ./link-to-project.py /path/to/another/project
+"""
+
+import os
+import sys
+import argparse
+import json
+import shutil
+from datetime import datetime
+from pathlib import Path
+
+VERSION = "1.0.0"
+ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
+def validate_paths(target_path, source_dir):
+    """
+    验证目标路径和源路径
+
+    Args:
+        target_path: 目标项目路径
+        source_dir: 源项目目录（当前脚本所在目录）
+
+    Returns:
+        tuple: (target_abs_path, source_abs_path) 绝对路径
+
+    Raises:
+        SystemExit: 如果路径无效
+    """
+    # 转换为绝对路径
+    target_abs = Path(target_path).resolve()
+    source_abs = Path(source_dir).resolve()
+
+    # 检查目标路径是否存在
+    if not target_abs.exists():
+        print(f"错误：目标路径不存在: {target_abs}")
+        sys.exit(1)
+
+    # 检查目标路径是否为目录
+    if not target_abs.is_dir():
+        print(f"错误：目标路径不是目录: {target_abs}")
+        sys.exit(1)
+
+    # 检查源文件/目录是否存在
+    settings_sample = source_abs / "misc" / "claude_settings.sample.json"
+    rules_dir = source_abs / ".claude" / "rules"
+    hooks_dir = source_abs / ".claude" / "hooks"
+
+    missing = []
+    if not settings_sample.exists():
+        missing.append(str(settings_sample))
+    if not rules_dir.exists():
+        missing.append(str(rules_dir))
+    if not hooks_dir.exists():
+        missing.append(str(hooks_dir))
+
+    if missing:
+        print("警告：以下源文件/目录不存在，将跳过：")
+        for m in missing:
+            print(f"  - {m}")
+
+    return target_abs, source_abs
+
+def make_symlink(source:Path, target:Path, description: str):
+    """
+    创建软链接
+
+    Args:
+        source: 源文件/目录的绝对路径
+        target: 目标链接的绝对路径
+        description: 链接描述（用于日志）
+
+    Returns:
+        bool: 是否成功创建链接
+    """
+    # 检查源是否存在
+    if not source.exists():
+        print(f"  跳过 {description}：源不存在")
+        return False
+
+    # 检查目标是否已存在
+    if target.exists() or target.is_symlink():
+        # 如果已经是正确的软链接，跳过
+        if target.is_symlink() and target.resolve() == source.resolve():
+            print(f"  ✓ {description}：已存在正确的软链接")
+            return True
+
+        print(f"  ! {description}：目标已存在: {target}")
+        response = input("    是否删除并重新创建？(y/N): ")
+        if response.lower() != 'y':
+            print(f"    跳过")
+            return False
+
+        # 删除现有文件/链接
+        if target.is_symlink():
+            target.unlink()
+        elif target.is_dir():
+            import shutil
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+
+    # 确保目标目录存在
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    # 创建软链接
+    try:
+        target.symlink_to(source)
+        print(f"  ✓ {description}：已创建软链接")
+        print(f"    {target} -> {source}")
+        return True
+    except Exception as e:
+        print(f"  ✗ {description}：创建失败 - {e}")
+        return False
+
+
+def make_links_for_subdirs(source, target, description):
+    """
+    创建软链接到子目录
+
+    Args:
+        source: 源目录的绝对路径
+        target: 目标目录的绝对路径
+        description: 链接描述（用于日志）
+    """
+    ## 先判断目标目录是否存在
+    abs_target = target.resolve()
+    abs_source = source.resolve()
+    if not target.exists():
+        print(f"  新建 {description}：{abs_target}, 即将对源子目录进行软链接")
+        target.mkdir(parents=True, exist_ok=True)
+    elif not target.is_dir():
+        print(f"  跳过 {description}：目标不是目录: {target}")
+        return False
+    elif target.is_symlink() and abs_target == abs_source:
+        print(f"  跳过 {description}：已经全局软连接")
+        return False
+    elif abs_target == abs_source:
+        print(f"  跳过 {description}：目标目录与源目录相同")
+        return False
+    for item in source.iterdir():
+        if item.is_dir():
+            src_path = item.resolve()
+            dst_path = abs_target / item.name
+            make_symlink(src_path, dst_path, f"{description} - {item.name}")
+    
+
+def generate_global_settings(source_dir):
+    """
+    从 misc/claude_settings.sample.json 生成全局配置文件
+
+    Args:
+        source_dir: 源项目目录（包含 misc/ 目录）
+
+    Returns:
+        bool: 是否成功生成配置
+    """
+    settings_sample = source_dir / "misc" / "claude_settings.sample.json"
+    home_dir = Path.home()
+    global_settings = home_dir / ".claude" / "settings.json"
+
+    # 检查示例配置是否存在
+    if not settings_sample.exists():
+        print(f"  ⚠️  示例配置不存在: {settings_sample}")
+        return False
+
+    # 备份现有配置
+    if global_settings.exists():
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_file = global_settings.parent / f"settings.json.backup.{timestamp}"
+        shutil.copy2(global_settings, backup_file)
+        print(f"  📦 已备份现有配置到: {backup_file}")
+
+    # 读取示例配置
+    with open(settings_sample, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 处理路径变量
+    content = content.replace(
+        '{当前项目路径}',
+        '$CLAUDE_PROJECT_DIR'
+    )
+
+    # 确保目标目录存在
+    global_settings.parent.mkdir(parents=True, exist_ok=True)
+
+    # 写入全局配置
+    with open(global_settings, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print(f"  ✅ 已生成全局配置: {global_settings}")
+    print(f"  📄 使用模板: {settings_sample}")
+
+    return True
+
+
+def record_linked_project(source_dir, target_path):
+    """
+    记录已链接的项目
+
+    Args:
+        source_dir: 源项目目录
+        target_path: 目标项目路径
+    """
+    record_file = source_dir / ".claude" / "linked-projects.json"
+
+    # 读取现有记录
+    if record_file.exists():
+        with open(record_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    else:
+        data = {"linked-projects": []}
+
+    # 获取目标路径的绝对路径字符串
+    target_str = str(Path(target_path).resolve())
+
+    # 检查是否已记录
+    existing_projects = {p[0]: p for p in data["linked-projects"]}
+
+    # 添加或更新记录
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    existing_projects[target_str] = [target_str, timestamp]
+
+    # 更新数据
+    data["linked-projects"] = list(existing_projects.values())
+
+    # 确保目录存在
+    record_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # 写入文件
+    with open(record_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    print(f"\n已记录到：{record_file}")
+
+
+def read_ignore_file(file_path):
+    """
+    读取 ignore 文件并返回有效规则列表（忽略空行和注释）
+
+    Args:
+        file_path: ignore 文件路径（Path 对象）
+
+    Returns:
+        list: 有效的 ignore 规则列表
+    """
+    if not file_path.exists():
+        return []
+
+    valid_lines = []
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                line = line.rstrip()
+                # 跳过空行和注释行
+                if line and not line.startswith('#'):
+                    valid_lines.append(line)
+    except Exception as e:
+        print(f"  ! 读取文件失败 {file_path}: {e}")
+        return []
+
+    return valid_lines
+
+
+def merge_unique(ary1, ary2, ary3):
+    """
+    合并三个数组并去重，保持首次出现的顺序
+
+    Args:
+        ary1, ary2, ary3: 要合并的列表
+
+    Returns:
+        tuple: (merged_list, stats_dict) 合并后的列表和统计信息
+    """
+    seen = set()
+    merged = []
+
+    stats = {
+        'ary1_contributed': 0,
+        'ary2_contributed': 0,
+        'ary3_contributed': 0,
+        'total_unique': 0
+    }
+
+    # 合并 ary1
+    for line in ary1:
+        if line not in seen:
+            seen.add(line)
+            merged.append(line)
+            stats['ary1_contributed'] += 1
+
+    # 合并 ary2
+    for line in ary2:
+        if line not in seen:
+            seen.add(line)
+            merged.append(line)
+            stats['ary2_contributed'] += 1
+
+    # 合并 ary3
+    for line in ary3:
+        if line not in seen:
+            seen.add(line)
+            merged.append(line)
+            stats['ary3_contributed'] += 1
+
+    stats['total_unique'] = len(merged)
+
+    return merged, stats
+
+
+def init_claudeignore(target_path):
+    """
+    为目标项目创建 .claudeignore 文件
+
+    合并以下文件的内容（去重，保持顺序，忽略空行和注释）：
+    1. 目标项目现有的 .claudeignore
+    2. $HOME/.gitignore_global
+    3. 目标项目的 .gitignore
+
+    Args:
+        target_path: 目标项目路径（Path 对象）
+
+    Returns:
+        bool: 是否成功创建/更新文件
+    """
+    target_abs = Path(target_path).resolve()
+
+    print("\n生成 .claudeignore...")
+
+    # 1. 读取三个来源
+    claudeignore_orig = target_abs / ".claudeignore"
+    gitignore_global = Path.home() / ".gitignore_global"
+    gitignore_local = target_abs / ".gitignore"
+
+    ary1 = read_ignore_file(claudeignore_orig)
+    ary2 = read_ignore_file(gitignore_global)
+    ary3 = read_ignore_file(gitignore_local)
+
+    print(f"  读取源文件:")
+    print(f"    - .claudeignore: {len(ary1)} 条规则")
+    print(f"    - $HOME/.gitignore_global: {len(ary2)} 条规则")
+    print(f"    - .gitignore: {len(ary3)} 条规则")
+
+    # 2. 合并去重
+    merged, stats = merge_unique(ary1, ary2, ary3)
+
+    if not merged:
+        print("  ! 没有找到任何 ignore 规则，跳过生成")
+        return False
+
+    # 3. 生成新内容
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    content_lines = []
+    content_lines.append(f"## update@{timestamp}")
+    content_lines.append("")
+
+    if stats['ary1_contributed'] > 0:
+        content_lines.append("###### merged from origin .claudeignore")
+        # 只输出来自 ary1 的规则
+        for line in merged[:stats['ary1_contributed']]:
+            content_lines.append(line)
+        content_lines.append("")
+
+    ary2_start = stats['ary1_contributed']
+    ary2_end = ary2_start + stats['ary2_contributed']
+    if stats['ary2_contributed'] > 0:
+        content_lines.append("###### merged from $HOME/.gitignore_global")
+        for line in merged[ary2_start:ary2_end]:
+            content_lines.append(line)
+        content_lines.append("")
+
+    ary3_start = ary2_end
+    if stats['ary3_contributed'] > 0:
+        content_lines.append("###### merged from .gitignore")
+        for line in merged[ary3_start:]:
+            content_lines.append(line)
+        content_lines.append("")
+
+    # 4. 写入文件
+    output_file = target_abs / ".claudeignore"
+
+    # 如果文件存在，备份
+    if output_file.exists():
+        backup_name = f".claudeignore.bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        backup = target_abs / backup_name
+        shutil.copy2(output_file, backup)
+        print(f"  ✓ 已备份原文件: {backup_name}")
+
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(content_lines))
+
+        print(f"  ✓ 已生成 .claudeignore:")
+        print(f"    - 总规则数: {stats['total_unique']} 条（已去重）")
+        print(f"    - 来自 .claudeignore: {stats['ary1_contributed']} 条")
+        print(f"    - 来自 .gitignore_global: {stats['ary2_contributed']} 条")
+        print(f"    - 来自 .gitignore: {stats['ary3_contributed']} 条")
+        print(f"    - 文件位置: {output_file}")
+
+        return True
+    except Exception as e:
+        print(f"  ✗ 写入文件失败: {e}")
+        return False
+
+
+def main():
+    """主函数"""
+    parser = argparse.ArgumentParser(
+        description="将当前项目的 .claude 配置软链接到目标项目",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  %(prog)s /path/to/target/project
+  %(prog)s ../another-project
+
+说明:
+  此脚本会执行以下操作：
+    1. 从 misc/claude_settings.sample.json 生成 $HOME/.claude/settings.json
+    2. 软链接 .claude/rules -> .claude/rules
+    3. 软链接 .claude/hooks -> .claude/hooks
+    4. 软链接 .claude/skills -> .claude/skills
+
+  软链接使用绝对路径，确保在不同操作系统上都能正常工作。
+  全局配置允许项目通过 .claude/settings.local.json 覆盖特定设置。
+        """
+    )
+    parser.add_argument(
+        "target_path",
+        help="目标项目的路径"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {VERSION}"
+    )
+
+    args = parser.parse_args()
+
+    # 获取当前脚本所在目录
+    source_dir = Path(os.path.realpath(__file__)).parent
+
+    # 验证路径
+    target_abs, source_abs = validate_paths(args.target_path, source_dir)
+
+    print(f"\n源项目：{source_abs}")
+    print(f"目标项目：{target_abs}")
+    print(f"全局配置：$HOME/.claude/settings.json\n")
+
+    # 创建目标 .claude 目录
+    target_claude_dir = target_abs / ".claude"
+    target_claude_dir.mkdir(exist_ok=True)
+
+    # 创建软链接
+    print("开始链接配置到目标项目...\n")
+
+    results = []
+
+    # 1. 生成全局配置文件
+    print("生成全局配置...\n")
+    generate_global_settings(source_abs)
+
+    # 2. rules 目录
+    source_rules = source_abs / ".claude" / "rules"
+    target_rules = target_claude_dir / "rules"
+    results.append(make_links_for_subdirs(source_rules, target_rules, "rules 目录"))
+
+    # 3. hooks 目录
+    source_hooks = source_abs / ".claude" / "hooks"
+    target_hooks = target_claude_dir / "hooks"
+    results.append(make_links_for_subdirs(source_hooks, target_hooks, "hooks 目录"))
+
+    # 3. skills 目录
+    source_skills = source_abs / ".claude" / "skills"
+    target_skills = target_claude_dir / "skills"
+    results.append(make_links_for_subdirs(source_skills, target_skills, "skills 目录"))
+
+    print(f"\n完成！")
+    print(f"  - 已生成全局配置")
+    print(f"  - 成功创建 {sum(results)} 个软链接")
+
+    # 记录链接的项目
+    if any(results):
+        record_linked_project(source_abs, target_abs)
+
+    # 生成 .claudeignore
+    try:
+        init_claudeignore(target_abs)
+    except Exception as e:
+        print(f"\n✗ 生成 .claudeignore 失败: {e}")
+
+
+if __name__ == "__main__":
+    main()
