@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(python3:*)",
+      "Bash(echo:*)",
+      "Bash(go build:*)",
+      "Bash(.claude/hooks/install-to-project.sh)",
+      "Bash(ls:*)",
+      "Bash(.claude/hooks/install-to-project.sh:*)",
+      "Bash(tree:*)",
+      "Bash(./setup-vscode-multi-ai.sh:*)",
+      "Bash(./install-vscode-ai-extensions.sh:*)",
+      "Bash(./quick-setup-ai.sh:*)",
+      "Bash(./link-to-project.py:*)",
+      "Bash(git add:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(source ~/.zshrc)",
+      "Bash(zsh -c 'source ~/.zshrc && alias | grep -E \"\"^\\(c|cy|c-auto|c-yes\\)=\"\"')",
+      "Bash(cat:*)",
+      "Bash(zsh:*)",
+      "Bash(test:*)",
+      "Skill(zco-plan)",
+      "Bash(git commit:*)",
+      "Bash(./.claude/commands/show_env:*)",
+      "Skill(zco-plan-new)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save_chat_plain.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save_chat_spec.py"
+          }
+        ]
+      }
+    ]
+  }
+}

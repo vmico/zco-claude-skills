@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""
+Display current Claude CLI session environment variables
+
+Usage:
+    show_env              # Show filtered env vars (default)
+    show_env --all        # Show all env vars and save to _.env.txt
+
+Default filters: AN, ACCESS, YJ, CODE, CLAUDE, KEY, IN
+"""
+import os
+import sys
+import argparse
+
+
+DEFAULT_FILTERS = ['AN', 'ACCESS', 'YJ', 'CODE', 'CLAUDE', 'KEY', 'IN']
+
+
+def should_show_var(var_name, filters):
+    """Check if variable name contains any filter keyword"""
+    var_upper = var_name.upper()
+    return any(f in var_upper for f in filters)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Show Claude CLI environment variables',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  show_env              Show filtered environment variables
+  show_env --all        Show all variables and save to _.env.txt
+
+Default filters: AN, ACCESS, YJ, CODE, CLAUDE, KEY, IN
+        """
+    )
+    parser.add_argument(
+        '--all',
+        action='store_true',
+        help='Show all environment variables and save to _.env.txt'
+    )
+
+    args = parser.parse_args()
+
+    env_vars = dict(os.environ)
+
+    if args.all:
+        # Show and save all environment variables
+        output_file = '_.env.txt'
+        print("📋 All Environment Variables\n")
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write("# Environment Variables\n")
+            f.write(f"# Generated: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+
+            for key in sorted(env_vars.keys()):
+                line = f"{key}={env_vars[key]}"
+                print(line)
+                f.write(line + '\n')
+
+        print(f"\n✅ All {len(env_vars)} environment variables saved to: {output_file}")
+
+    else:
+        # Show filtered environment variables
+        print("🔧 Claude CLI Environment Variables (Filtered)\n")
+        print(f"Filters: {', '.join(DEFAULT_FILTERS)}\n")
+
+        shown_vars = {}
+        for key in sorted(env_vars.keys()):
+            if should_show_var(key, DEFAULT_FILTERS):
+                shown_vars[key] = env_vars[key]
+
+        if not shown_vars:
+            print("(No matching variables found)")
+        else:
+            max_key_len = max(len(k) for k in shown_vars.keys())
+            for key, value in shown_vars.items():
+                print(f"{key:<{max_key_len}} = {value}")
+
+        print(f"\n✅ Showing {len(shown_vars)} of {len(env_vars)} variables")
+        print("💡 Use --all to see all environment variables")
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

@@ -1,0 +1,170 @@
+# golangci-lint 配置模板
+# 将此文件复制到项目根目录并重命名为 .golangci.yml
+
+run:
+  # 超时时间
+  timeout: 5m
+
+  # 要检查的目录
+  tests: true
+
+  # 要跳过的目录
+  skip-dirs:
+    - vendor
+    - third_party
+    - testdata
+    - examples
+    - .*
+
+# 启用的 linters
+linters:
+  enable:
+    # 基础检查
+    - gofmt          # 代码格式检查
+    - goimports      # import 顺序检查
+    - govet          # go vet 静态分析
+    - errcheck       # 错误检查
+    - staticcheck    # 静态分析
+    - unused         # 未使用代码检查
+    - gosimple       # 简化建议
+    - ineffassign    # 无效赋值检查
+    - typecheck      # 类型检查
+
+    # 代码质量
+    - gocyclo        # 圈复杂度检查
+    - funlen         # 函数长度检查
+    - gocognit       # 认知复杂度检查
+
+    # 错误处理
+    - goerr113       # 错误处理检查
+    - wrapcheck      # 错误包装检查
+
+    # 性能
+    - prealloc       # slice 预分配检查
+
+    # 风格
+    - stylecheck     # 代码风格检查
+    - revive         # golint 替代品
+
+    # 注释
+    - godot          # 注释格式检查
+    - godox          # TODO/FIXME 检查
+
+    # 安全
+    - gosec          # 安全检查
+
+  disable:
+    - deadcode       # 已被 unused 替代
+    - varcheck       # 已被 unused 替代
+    - structcheck    # 已被 unused 替代
+
+# Linters 配置
+linters-settings:
+  # 圈复杂度检查
+  gocyclo:
+    min-complexity: 10
+
+  # 函数长度检查
+  funlen:
+    lines: 50
+    statements: 40
+
+  # 认知复杂度检查
+  gocognit:
+    min-complexity: 15
+
+  # 错误检查
+  errcheck:
+    check-blank: true        # 检查 _ = err
+    check-type-assertions: true
+
+  # go vet 配置
+  govet:
+    check-shadowing: true
+    enable-all: true
+
+  # 注释格式检查
+  godot:
+    scope: declarations
+    capital: true
+
+  # TODO/FIXME 检查（允许使用 //; 前缀的注释）
+  godox:
+    keywords:
+      - TODO
+      - FIXME
+      - HACK
+      - OPTIMIZE
+      - DEPRECATED
+      - NOTE
+
+  # 安全检查
+  gosec:
+    severity: medium
+    confidence: medium
+    excludes:
+      - G104  # 允许未检查的错误（errcheck 会处理）
+
+  # 代码风格检查
+  stylecheck:
+    checks: ["all", "-ST1000", "-ST1003"]
+
+  # Revive 配置
+  revive:
+    confidence: 0.8
+    rules:
+      - name: exported
+        severity: warning
+      - name: unexported-return
+        severity: warning
+      - name: time-naming
+        severity: warning
+
+# Issues 配置
+issues:
+  # 排除规则
+  exclude-rules:
+    # 测试文件允许更长的函数
+    - path: _test\.go
+      linters:
+        - funlen
+        - gocyclo
+        - gocognit
+
+    # 允许在测试中使用点导入
+    - path: _test\.go
+      text: "should not use dot imports"
+
+    # 允许在 main.go 中使用全局变量
+    - path: cmd/.*main\.go
+      linters:
+        - gochecknoglobals
+
+    # 允许特定的 TODO/FIXME 注释（使用 //; 前缀 和 //@ 前缀）
+    - linters:
+        - godox
+      source: "//;"
+
+  # 最大 issues 数量（0 表示无限制）
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  # 不排除新代码的 issues
+  new: false
+
+  # 显示所有 issues
+  exclude-use-default: false
+
+# 输出配置
+output:
+  # 输出格式：colored-line-number, line-number, json, tab, checkstyle
+  format: colored-line-number
+
+  # 打印 linter 名称
+  print-linter-name: true
+
+  # 使问题输出唯一
+  uniq-by-line: false
+
+  # 排序方式
+  sort-results: true

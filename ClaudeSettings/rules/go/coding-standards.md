@@ -1,0 +1,973 @@
+# Go 项目编程标准
+
+## 注释规范
+
+### 注释类型区分（核心约定）
+
+本项目使用不同的注释标记来区分注释的用途：
+
+#### 1. 代码功能注释 `//; `
+**用途**：解释代码的功能、逻辑、算法, 跟纯代码注释"//"区分
+
+**使用场景**：
+- 解释复杂的业务逻辑
+- 说明算法实现思路
+- 阐述为什么这样写（设计决策）
+- 公共 API 的文档注释
+
+**示例**：
+```go
+//; CalculateDiscount 根据订单金额和用户等级计算折扣
+//; 折扣规则：
+//; - VIP 用户：订单金额的 15%
+//; - 普通用户：订单金额的 10%
+//; - 订单金额 < 100 元不享受折扣
+func CalculateDiscount(amount float64, userLevel string) float64 {
+    //; 小额订单不参与折扣活动
+    if amount < 100 {
+        return 0
+    }
+
+    //; 根据用户等级计算折扣率
+    var rate float64
+    switch userLevel {
+    case "VIP":
+        rate = 0.15
+    default:
+        rate = 0.10
+    }
+
+    return amount * rate
+}
+```
+
+#### 2. 非代码注释 `//;@`
+**用途**：元信息、开发备注、待办事项、调试信息
+
+**使用场景**：
+- `//;@TODO:` - 待实现的功能
+- `//;@FIXME:` - 需要修复的问题
+- `//;@NOTE:` - 开发者备注
+- `//;@HACK:` - 临时解决方案
+- `//;@OPTIMIZE:` - 性能优化点
+- `//;@DEPRECATED:` - 已废弃的代码
+- `//;@DEBUG:` - 调试信息
+- `//;@XXX:` - 需要注意的问题
+
+**示例**：
+```go
+func ProcessOrder(order *Order) error {
+    //;@TODO: 添加订单金额验证
+    //;@NOTE: 这里需要考虑并发安全问题
+
+    // 计算订单总金额
+    total := calculateTotal(order)
+
+    //;@FIXME: Redis 连接偶尔会超时，需要添加重试机制
+    if err := cache.Set(order.ID, total); err != nil {
+        return err
+    }
+
+    //;@HACK: 临时方案，等待支付网关 API 升级后移除
+    if order.PaymentMethod == "alipay_v1" {
+        return processLegacyAlipay(order)
+    }
+
+    //;@OPTIMIZE: 这里可以使用批量查询减少数据库访问
+    for _, item := range order.Items {
+        product, err := db.GetProduct(item.ProductID)
+        if err != nil {
+            return err
+        }
+        //; 处理商品...
+    }
+
+    return nil
+}
+
+//;@DEPRECATED: 使用 ProcessOrderV2 替代
+//;此函数将在 v2.0 版本移除
+func ProcessOrderLegacy(order *Order) error {
+    // ...
+}
+```
+
+#### 3. 注释使用原则
+
+**强制规则（MUST）**：
+- ✅ 所有导出的函数、类型、常量必须有文档注释（使用 `//`）
+- ✅ 复杂逻辑必须有解释注释（使用 `//`）
+- ✅ 所有 TODO、FIXME 等必须使用 `//;` 前缀
+- ✅ 调试注释、临时备注必须使用 `//;` 前缀
+- ❌ 禁止用注释注释掉代码（应该删除或使用 Git）
+
+**推荐规则（SHOULD）**：
+- 注释应该解释"为什么"而不是"是什么"
+- 代码应该自解释，减少不必要的注释
+- 注释应该与代码保持同步更新
+
+**注释检查工具**：
+```bash
+# 查找所有非代码注释
+grep -r "//;" . --include="*.go"
+
+# 查找所有 TODO
+grep -r "//;@TODO:" . --include="*.go"
+
+# 查找所有需要修复的问题
+grep -r "//;@FIXME:" . --include="*.go"
+
+# 查找已废弃的代码
+grep -r "//;@DEPRECATED:" . --include="*.go"
+```
+
+---
+
+## 命名规范
+
+### 包命名
+
+**规则**：
+- 使用小写单词，不使用下划线或驼峰
+- 简短且有意义
+- 避免使用泛化名称（util、common、base）
+
+**示例**：
+```go
+✅ package user
+✅ package payment
+✅ package cache
+
+❌ package userService
+❌ package user_service
+❌ package utils
+```
+
+### 变量命名
+
+**规则**：
+- 使用驼峰命名法（camelCase）
+- 导出变量使用大写开头（PascalCase）
+- 缩写词保持一致的大小写（ID、URL、HTTP）
+- 单字母变量仅用于短循环
+
+**示例**：
+```go
+// 普通变量
+var userName string
+var orderCount int
+
+// 导出变量
+var MaxRetryCount = 3
+var DefaultTimeout = 30 * time.Second
+
+// 缩写词
+var userID int64        // ✅
+var userUrl string      // ❌ 应该是 userURL
+var HTTPClient *http.Client  // ✅
+
+// 循环变量
+for i := 0; i < len(items); i++ {  // ✅ 短循环可以用 i
+    // ...
+}
+
+for index, item := range items {   // ✅ 长循环用有意义的名字
+    // ...
+}
+```
+
+### 函数命名
+
+**规则**：
+- 使用驼峰命名法
+- 动词开头，表达清晰的动作
+- 布尔返回值的函数以 `is`、`has`、`can` 等开头
+
+**示例**：
+```go
+// 普通函数
+func calculateTotal(items []Item) float64 { }
+func sendEmail(to string, body string) error { }
+
+// 导出函数
+func CreateUser(name, email string) (*User, error) { }
+func UpdateOrder(id int64, status string) error { }
+
+// 布尔函数
+func isValid(email string) bool { }
+func hasPermission(user *User, resource string) bool { }
+func canEdit(user *User) bool { }
+
+// Getter/Setter
+func (u *User) Name() string { return u.name }        // ✅
+func (u *User) SetName(name string) { u.name = name } // ✅
+func (u *User) GetName() string { }                   // ❌ Go 不用 Get 前缀
+```
+
+### 常量命名
+
+**规则**：
+- 导出常量使用大写开头驼峰
+- 私有常量使用小写开头驼峰
+- 枚举值使用类型名作为前缀
+
+**示例**：
+```go
+// 导出常量
+const (
+    MaxLoginAttempts = 5
+    DefaultPageSize  = 20
+    APIVersion       = "v1"
+)
+
+// 私有常量
+const (
+    maxRetries     = 3
+    defaultTimeout = 30
+)
+
+// 枚举（使用类型前缀）
+type OrderStatus int
+
+const (
+    OrderStatusPending OrderStatus = iota
+    OrderStatusPaid
+    OrderStatusShipped
+    OrderStatusCompleted
+    OrderStatusCancelled
+)
+```
+
+### 接口命名
+
+**规则**：
+- 单方法接口使用 `-er` 后缀
+- 多方法接口使用有意义的名词
+
+**示例**：
+```go
+// 单方法接口
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+
+type Writer interface {
+    Write(p []byte) (n int, err error)
+}
+
+type Closer interface {
+    Close() error
+}
+
+// 多方法接口
+type UserRepository interface {
+    Create(user *User) error
+    FindByID(id int64) (*User, error)
+    Update(user *User) error
+    Delete(id int64) error
+}
+```
+
+---
+
+## 代码组织
+
+### 文件结构
+
+**标准文件顺序**：
+```go
+// 1. Package 声明
+package user
+
+// 2. Import 分组（标准库 -> 第三方库 -> 本项目）
+import (
+    // 标准库
+    "context"
+    "fmt"
+    "time"
+
+    // 第三方库
+    "github.com/gin-gonic/gin"
+    "gorm.io/gorm"
+
+    // 本项目
+    "yourproject/internal/model"
+    "yourproject/pkg/logger"
+)
+
+// 3. 常量定义
+const (
+    MaxNameLength = 50
+)
+
+// 4. 变量定义
+var (
+    DefaultTimeout = 30 * time.Second
+)
+
+// 5. 类型定义
+type User struct {
+    ID        int64
+    Name      string
+    Email     string
+    CreatedAt time.Time
+}
+
+// 6. 构造函数
+func NewUser(name, email string) *User {
+    return &User{
+        Name:      name,
+        Email:     email,
+        CreatedAt: time.Now(),
+    }
+}
+
+// 7. 接口实现和方法
+func (u *User) Validate() error {
+    // ...
+}
+
+// 8. 公共函数
+func CreateUser(ctx context.Context, user *User) error {
+    // ...
+}
+
+// 9. 私有函数
+func validateEmail(email string) bool {
+    // ...
+}
+```
+
+### 包结构
+
+**推荐的项目结构**：
+```
+project/
+├── cmd/                    # 主程序入口
+│   └── server/
+│       └── main.go
+├── internal/               # 私有代码
+│   ├── handler/           # HTTP 处理器
+│   ├── service/           # 业务逻辑
+│   ├── repository/        # 数据访问
+│   └── model/             # 数据模型
+├── pkg/                    # 可导出的库
+│   ├── logger/
+│   └── cache/
+├── api/                    # API 定义（protobuf、OpenAPI）
+├── config/                 # 配置文件
+├── scripts/                # 脚本文件
+└── test/                   # 测试数据、集成测试
+```
+
+**分层原则**：
+```go
+// ✅ 推荐：清晰的分层
+handler -> service -> repository -> database
+  |          |            |
+  v          v            v
+HTTP      业务逻辑      数据访问
+
+// ❌ 禁止：跨层调用
+handler -> repository (跳过 service)
+handler -> database   (跳过 service 和 repository)
+```
+
+---
+
+## 错误处理
+
+### 错误定义
+
+**规则**：
+- 使用 `errors.New()` 定义简单错误
+- 使用自定义错误类型处理复杂错误
+- 错误信息使用小写，不以标点结尾
+- 使用 `fmt.Errorf()` 包装错误并添加上下文
+
+**示例**：
+```go
+import (
+    "errors"
+    "fmt"
+)
+
+// 简单错误
+var (
+    ErrUserNotFound     = errors.New("user not found")
+    ErrInvalidEmail     = errors.New("invalid email format")
+    ErrDuplicateEmail   = errors.New("email already exists")
+)
+
+// 自定义错误类型
+type ValidationError struct {
+    Field   string
+    Message string
+}
+
+func (e *ValidationError) Error() string {
+    return fmt.Sprintf("validation failed on field '%s': %s", e.Field, e.Message)
+}
+
+// 错误包装
+func GetUser(id int64) (*User, error) {
+    user, err := db.FindByID(id)
+    if err != nil {
+        //;@NOTE: 使用 %w 可以保留原始错误，支持 errors.Is() 和 errors.As()
+        return nil, fmt.Errorf("failed to get user %d: %w", id, err)
+    }
+    return user, nil
+}
+
+// 错误检查
+func ProcessUser(id int64) error {
+    user, err := GetUser(id)
+    if err != nil {
+        // 使用 errors.Is 检查特定错误
+        if errors.Is(err, ErrUserNotFound) {
+            return fmt.Errorf("cannot process: user %d not found", id)
+        }
+        return err
+    }
+    // ...
+    return nil
+}
+```
+
+### 错误处理模式
+
+**推荐模式**：
+```go
+// ✅ 推荐：及早返回
+func ProcessOrder(order *Order) error {
+    if err := validateOrder(order); err != nil {
+        return fmt.Errorf("validation failed: %w", err)
+    }
+
+    if err := checkInventory(order); err != nil {
+        return fmt.Errorf("inventory check failed: %w", err)
+    }
+
+    if err := processPayment(order); err != nil {
+        return fmt.Errorf("payment processing failed: %w", err)
+    }
+
+    return nil
+}
+
+// ❌ 避免：嵌套过深
+func ProcessOrder(order *Order) error {
+    if err := validateOrder(order); err == nil {
+        if err := checkInventory(order); err == nil {
+            if err := processPayment(order); err == nil {
+                return nil
+            } else {
+                return err
+            }
+        } else {
+            return err
+        }
+    } else {
+        return err
+    }
+}
+```
+
+---
+
+## 函数设计
+
+### 函数长度
+
+**规则**：
+- 单个函数 ≤ 50 行（推荐）
+- 圈复杂度 ≤ 10
+- 参数数量 ≤ 5 个
+
+**重构建议**：
+```go
+// ❌ 函数过长
+func ProcessOrder(order *Order) error {
+    // 100+ 行代码...
+}
+
+// ✅ 拆分为多个小函数
+func ProcessOrder(order *Order) error {
+    if err := validateOrder(order); err != nil {
+        return err
+    }
+
+    if err := calculateTotal(order); err != nil {
+        return err
+    }
+
+    if err := processPayment(order); err != nil {
+        return err
+    }
+
+    if err := updateInventory(order); err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func validateOrder(order *Order) error { /* ... */ }
+func calculateTotal(order *Order) error { /* ... */ }
+func processPayment(order *Order) error { /* ... */ }
+func updateInventory(order *Order) error { /* ... */ }
+```
+
+### 参数传递
+
+**规则**：
+- 超过 3 个参数考虑使用配置结构体
+- 使用选项模式（Functional Options Pattern）处理可选参数
+
+**示例**：
+```go
+// ❌ 参数过多
+func CreateUser(name, email, phone, address, city, country string, age int, isActive bool) error {
+    // ...
+}
+
+// ✅ 使用结构体
+type CreateUserRequest struct {
+    Name      string
+    Email     string
+    Phone     string
+    Address   string
+    City      string
+    Country   string
+    Age       int
+    IsActive  bool
+}
+
+func CreateUser(req *CreateUserRequest) error {
+    // ...
+}
+
+// ✅ 使用选项模式
+type UserOption func(*User)
+
+func WithPhone(phone string) UserOption {
+    return func(u *User) {
+        u.Phone = phone
+    }
+}
+
+func WithAddress(address string) UserOption {
+    return func(u *User) {
+        u.Address = address
+    }
+}
+
+func NewUser(name, email string, opts ...UserOption) *User {
+    user := &User{
+        Name:  name,
+        Email: email,
+    }
+
+    for _, opt := range opts {
+        opt(user)
+    }
+
+    return user
+}
+
+// 使用
+user := NewUser("John", "john@example.com",
+    WithPhone("123456"),
+    WithAddress("123 Main St"),
+)
+```
+
+---
+
+## 并发编程
+
+### Goroutine 使用
+
+**规则**：
+- 明确 goroutine 的生命周期
+- 避免 goroutine 泄漏
+- 使用 context 控制 goroutine 退出
+
+**示例**：
+```go
+// ✅ 推荐：使用 context 控制
+func StartWorker(ctx context.Context) {
+    go func() {
+        ticker := time.NewTicker(1 * time.Second)
+        defer ticker.Stop()
+
+        for {
+            select {
+            case <-ctx.Done():
+                //;@NOTE: Context 取消时退出
+                return
+            case <-ticker.C:
+                // 执行任务
+                doWork()
+            }
+        }
+    }()
+}
+
+// ❌ 避免：无法控制的 goroutine
+func StartWorker() {
+    go func() {
+        for {
+            time.Sleep(1 * time.Second)
+            doWork()  // 永远无法停止
+        }
+    }()
+}
+```
+
+### Channel 使用
+
+**规则**：
+- 只有发送方关闭 channel
+- 使用 buffered channel 避免阻塞
+- 使用 select 处理多个 channel
+
+**示例**：
+```go
+// ✅ 推荐模式
+func Producer(ctx context.Context) <-chan int {
+    ch := make(chan int, 10)  // buffered channel
+
+    go func() {
+        defer close(ch)  // 发送方关闭 channel
+
+        for i := 0; i < 100; i++ {
+            select {
+            case <-ctx.Done():
+                return
+            case ch <- i:
+                // 发送数据
+            }
+        }
+    }()
+
+    return ch
+}
+
+func Consumer(ctx context.Context, ch <-chan int) {
+    for {
+        select {
+        case <-ctx.Done():
+            return
+        case val, ok := <-ch:
+            if !ok {
+                //;@NOTE: Channel 已关闭
+                return
+            }
+            process(val)
+        }
+    }
+}
+```
+
+### Mutex 使用
+
+**规则**：
+- 锁的粒度尽可能小
+- 避免在持有锁时调用外部函数
+- 使用 defer 确保解锁
+
+**示例**：
+```go
+type SafeCounter struct {
+    mu    sync.Mutex
+    count int
+}
+
+// ✅ 推荐：使用 defer 解锁
+func (c *SafeCounter) Inc() {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    c.count++
+}
+
+// ✅ 推荐：减小锁粒度
+func (c *SafeCounter) GetAndReset() int {
+    c.mu.Lock()
+    count := c.count
+    c.count = 0
+    c.mu.Unlock()
+
+    // 在锁外执行耗时操作
+    log.Printf("counter was %d", count)
+
+    return count
+}
+
+// ❌ 避免：锁粒度过大
+func (c *SafeCounter) GetAndReset() int {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+
+    count := c.count
+    c.count = 0
+
+    // 在持有锁时执行耗时操作（阻塞其他 goroutine）
+    log.Printf("counter was %d", count)
+    time.Sleep(100 * time.Millisecond)
+
+    return count
+}
+```
+
+---
+
+## 测试规范
+
+### 测试文件组织
+
+**规则**：
+- 测试文件以 `_test.go` 结尾
+- 测试函数以 `Test` 开头
+- 使用表驱动测试
+
+**示例**：
+```go
+// user.go
+package user
+
+func ValidateEmail(email string) bool {
+    // ...
+}
+
+// user_test.go
+package user
+
+import "testing"
+
+func TestValidateEmail(t *testing.T) {
+    tests := []struct {
+        name  string
+        email string
+        want  bool
+    }{
+        {
+            name:  "valid email",
+            email: "test@example.com",
+            want:  true,
+        },
+        {
+            name:  "missing @",
+            email: "testexample.com",
+            want:  false,
+        },
+        {
+            name:  "empty email",
+            email: "",
+            want:  false,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got := ValidateEmail(tt.email)
+            if got != tt.want {
+                t.Errorf("ValidateEmail(%q) = %v, want %v",
+                    tt.email, got, tt.want)
+            }
+        })
+    }
+}
+```
+
+### 测试覆盖率
+
+**要求**：
+- 单元测试覆盖率 ≥ 80%
+- 关键业务逻辑覆盖率 ≥ 95%
+
+**检查命令**：
+```bash
+# 运行测试并查看覆盖率
+go test -cover ./...
+
+# 生成覆盖率报告
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+```
+
+---
+
+## 性能优化
+
+### 字符串拼接
+
+**规则**：
+- 少量拼接使用 `+`
+- 循环中使用 `strings.Builder`
+- 格式化使用 `fmt.Sprintf()`
+
+**示例**：
+```go
+// ✅ 少量拼接
+name := firstName + " " + lastName
+
+// ✅ 循环中拼接
+func JoinStrings(items []string) string {
+    var builder strings.Builder
+    for _, item := range items {
+        builder.WriteString(item)
+        builder.WriteString(",")
+    }
+    return builder.String()
+}
+
+// ❌ 避免：循环中使用 +
+func JoinStrings(items []string) string {
+    result := ""
+    for _, item := range items {
+        result += item + ","  // 每次都会创建新字符串
+    }
+    return result
+}
+```
+
+### Slice 使用
+
+**规则**：
+- 预分配容量避免多次扩容
+- 注意 slice 共享底层数组的问题
+
+**示例**：
+```go
+// ✅ 预分配容量
+func ProcessItems(n int) []Item {
+    items := make([]Item, 0, n)  // 预分配容量
+    for i := 0; i < n; i++ {
+        items = append(items, createItem(i))
+    }
+    return items
+}
+
+// ❌ 未预分配容量
+func ProcessItems(n int) []Item {
+    var items []Item  // 会多次扩容
+    for i := 0; i < n; i++ {
+        items = append(items, createItem(i))
+    }
+    return items
+}
+```
+
+---
+
+## 代码审查清单
+
+### 提交前检查
+
+**必须检查项**：
+- [ ] 代码已格式化（`go fmt`）
+- [ ] 通过 linter 检查（`golangci-lint run`）
+- [ ] 所有测试通过（`go test ./...`）
+- [ ] 测试覆盖率达标（≥ 80%）
+- [ ] 没有 race condition（`go test -race ./...`）
+- [ ] 注释使用正确的标记（`//` vs `//;`）
+- [ ] 所有 `//;@TODO` 和 `//;@FIXME` 都已记录
+
+**推荐检查项**：
+- [ ] 函数长度 ≤ 50 行
+- [ ] 圈复杂度 ≤ 10
+- [ ] 没有重复代码
+- [ ] 错误处理完整
+- [ ] 没有明显的性能问题
+
+---
+
+## 工具配置
+
+### golangci-lint 配置
+
+创建 `.golangci.yml`：
+```yaml
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - deadcode
+    - typecheck
+    - gocyclo
+    - funlen
+    - gocognit
+
+linters-settings:
+  gocyclo:
+    min-complexity: 10
+  funlen:
+    lines: 50
+    statements: 40
+  errcheck:
+    check-blank: true
+  govet:
+    check-shadowing: true
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - gocyclo
+```
+
+### VS Code 配置
+
+创建 `.vscode/settings.json`：
+```json
+{
+  "go.lintTool": "golangci-lint",
+  "go.lintOnSave": "package",
+  "go.formatTool": "gofmt",
+  "editor.formatOnSave": true,
+  "go.testOnSave": false,
+  "go.coverOnSave": false
+}
+```
+
+---
+
+## 总结
+
+本编程标准的核心要点：
+
+1. **注释区分**：
+   - `//` 用于代码功能注释
+   - `//;` 用于 TODO、FIXME、DEBUG 等元信息
+
+2. **代码质量**：
+   - 函数长度 ≤ 50 行
+   - 圈复杂度 ≤ 10
+   - 测试覆盖率 ≥ 80%
+
+3. **错误处理**：
+   - 使用 `fmt.Errorf()` 包装错误
+   - 及早返回，避免嵌套
+
+4. **并发安全**：
+   - 使用 context 控制生命周期
+   - 避免 goroutine 泄漏
+   - 正确使用 mutex
+
+5. **测试要求**：
+   - 使用表驱动测试
+   - 确保测试覆盖率
+   - 运行 race detector
+
+**参考资源**：
+- [Effective Go](https://golang.org/doc/effective_go)
+- [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
+- [Uber Go Style Guide](https://github.com/uber-go/guide)

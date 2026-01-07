@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""
+Clean old log files from Claude conversation history
+
+Usage:
+    zco-clean                      # Clean files older than 30 days
+    zco-clean --days 7             # Clean files older than 7 days
+    zco-clean --dir custom_logs    # Clean custom directory
+    zco-clean --dry-run            # Show what would be deleted
+
+Environment Variables:
+    YJ_CLAUDE_CHAT_SAVE_DIR: Default directory to clean (default: _.claude_hist)
+"""
+import os
+import sys
+import argparse
+from pathlib import Path
+from datetime import datetime, timedelta
+
+
+def clean_old_files(directory, days, dry_run=False):
+    """Delete files older than specified days"""
+    target_dir = Path(directory)
+
+    if not target_dir.exists():
+        print(f"❌ Error: Directory does not exist: {directory}")
+        return 0, 0
+
+    if not target_dir.is_dir():
+        print(f"❌ Error: Not a directory: {directory}")
+        return 0, 0
+
+    cutoff_date = datetime.now() - timedelta(days=days)
+
+    # Find all markdown and text files
+    all_files = list(target_dir.glob('*.md')) + list(target_dir.glob('*.txt'))
+    old_files = []
+
+    for file_path in all_files:
+        if file_path.is_file():
+            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+            if mtime < cutoff_date:
+                old_files.append((file_path, mtime))
+
+    if not all_files:
+        print(f"ℹ️  No files found in {directory}")
+        return 0, 0
+
+    deleted_count = 0
+
+    if old_files:
+        if dry_run:
+            print(f"\n📝 Files that would be deleted:\n")
+        else:
+            print(f"\n🗑️  Deleting old files:\n")
+
+        # Sort by modification time (oldest first)
+        old_files.sort(key=lambda x: x[1])
+
+        for file_path, mtime in old_files:
+            age_days = (datetime.now() - mtime).days
+            age_str = f"({age_days} days old)"
+
+            if dry_run:
+                print(f"  - {file_path.name} {age_str}")
+            else:
+                try:
+                    file_path.unlink()
+                    print(f"  ✓ {file_path.name} {age_str}")
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"  ✗ {file_path.name} - Error: {e}")
+    else:
+        print(f"\nℹ️  No files older than {days} days found")
+
+    remaining_count = len(all_files) - deleted_count
+
+    return deleted_count, remaining_count
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Clean old Claude conversation logs',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  zco-clean                     Clean default directory (30 days)
+  zco-clean --days 7            Clean files older than 7 days
+  zco-clean --dir my_logs       Clean custom directory
+  zco-clean --dry-run           Preview what would be deleted
+
+Environment Variable:
+  YJ_CLAUDE_CHAT_SAVE_DIR      Default directory (if --dir not specified)
+        """
+    )
+
+    parser.add_argument(
+        '--days',
+        type=int,
+        default=30,
+        help='Delete files older than N days (default: 30)'
+    )
+
+    parser.add_argument(
+        '--dir',
+        type=str,
+        default=None,
+        help='Directory to clean (default: YJ_CLAUDE_CHAT_SAVE_DIR or _.claude_hist)'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be deleted without actually deleting'
+    )
+
+    args = parser.parse_args()
+
+    # Validate days parameter
+    if args.days < 0:
+        print(f"❌ Error: --days must be a positive number (got: {args.days})")
+        sys.exit(1)
+
+    # Determine directory
+    if args.dir:
+        target_dir = args.dir
+    else:
+        target_dir = os.environ.get('YJ_CLAUDE_CHAT_SAVE_DIR', '_.claude_hist')
+
+    print("=" * 60)
+    print("🧹 Claude Chat Log Cleanup")
+    print("=" * 60)
+    print(f"📂 Directory: {target_dir}")
+    print(f"📅 Delete files older than: {args.days} days")
+
+    if args.dry_run:
+        print("⚠️  DRY RUN MODE (no files will be actually deleted)")
+
+    print("=" * 60)
+
+    deleted, remaining = clean_old_files(target_dir, args.days, args.dry_run)
+
+    print("\n" + "=" * 60)
+    print("📊 Summary")
+    print("=" * 60)
+    print(f"✅ {'Would delete' if args.dry_run else 'Deleted'}: {deleted} file(s)")
+    print(f"📁 Remaining: {remaining} file(s)")
+    print("=" * 60)
+
+    if args.dry_run and deleted > 0:
+        print("\n💡 Run without --dry-run to actually delete files")
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
