@@ -1,0 +1,42 @@
+#!/bin/bash
+## desc: show git tag info
+## usage: zco-git-tag [RepoDir]
+## author: ningrong@minieye.com
+## version: v1.2024.11.24
+
+zco_git_tag_() {
+	local x_entry=${1:-$(pwd)}
+	local x_root=$(cd $x_entry && git rev-parse --show-toplevel 2>/dev/null)
+	if [[ -z "${x_root}" ]]; then
+		echo "[error]: 这不是一个仓库:" $x_entry
+		exit 1
+	fi
+	local x_commit_id=$(cd $x_root && git rev-parse --short=8 HEAD 2>/dev/null)
+	local x_branch=$(cd $x_root && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+	local x_commit_dt=$(cd $x_root && git show -s --format=%cd --date=format:'%y%m%d_%H%M' 2>/dev/null)
+	#local x_dirty_st1=$(cd $x_root && git diff --staged | wc -l 2>/dev/null)
+	#local x_dirty_st=$(cd $x_root && git diff --all | wc -l 2>/dev/null)
+	local x_dirty_st1=$(cd $x_root && git diff --staged | wc -l 2>/dev/null)
+	local x_dirty_st2=$(cd $x_root && git diff | wc -l 2>/dev/null)
+	if [[ -z "${x_dirty_st1}" && -z "${x_dirty_st2}" ]]; then
+		echo "Y${x_commit_dt}.${x_commit_id}"
+	else
+		echo "Y${x_commit_dt}.${x_commit_id}.${x_branch}.X"
+	fi
+	return 0
+}
+
+############################################
+##; Run Main
+if [ $# -eq 0 ]; then
+	zco_git_tag_ $(pwd)
+elif [[ $1 == "help" || $1 == "--help" || $1 == "-h" || $# -gt 1 ]]; then
+	decho "[entry]  $0"
+	decho "[usage] show git tag info"
+	decho "[eg0]: $(basename $0) <RepoDir>"
+	if [[ $# -gt 1 ]]; then
+		exit 1
+	fi
+else
+	zco_git_tag_ $1
+fi

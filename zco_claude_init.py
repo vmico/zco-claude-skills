@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-link-to-project.py - 将当前项目的 .claude 配置软链接到目标项目
+zco_claude_init.py - 将当前项目的 .claude 配置软链接到目标项目
 
 功能：
-  1. 软链接 claude_settings.local.json 到目标项目的 .claude/settings.local.json
+  1. 新建一个 $HOME/.claude/settings.json 全局配置
   2. 软链接 .claude/rules 目录到目标项目
   3. 软链接 .claude/hooks 目录到目标项目
-  4. 记录已链接的项目到 .claude/linked-projects.json
+  4. 记录已链接的项目到 _.linked-projects.json
 
 Usage:
-    ./link-to-project.py <target_project_path>
+    ./zco_claude_init.py <target_project_path>
 
 Example:
-    ./link-to-project.py /path/to/another/project
+    ./zco_claude_init.py /path/to/another/project
 """
 
 import os
@@ -25,13 +25,16 @@ from pathlib import Path
 
 VERSION = "1.0.0"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
+#ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
+ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
+
 def validate_paths(target_path, source_dir):
     """
     验证目标路径和源路径
 
     Args:
         target_path: 目标项目路径
-        source_dir: 源项目目录（当前脚本所在目录）
+        source_dir: 源项目目录（ClaudeSettings 目录）
 
     Returns:
         tuple: (target_abs_path, source_abs_path) 绝对路径
@@ -39,28 +42,25 @@ def validate_paths(target_path, source_dir):
     Raises:
         SystemExit: 如果路径无效
     """
-    # 转换为绝对路径
+    ##; 转换为绝对路径
     target_abs = Path(target_path).resolve()
     source_abs = Path(source_dir).resolve()
 
-    # 检查目标路径是否存在
+    ##; 检查目标路径是否存在
     if not target_abs.exists():
         print(f"错误：目标路径不存在: {target_abs}")
         sys.exit(1)
 
-    # 检查目标路径是否为目录
+    ##; 检查目标路径是否为目录
     if not target_abs.is_dir():
         print(f"错误：目标路径不是目录: {target_abs}")
         sys.exit(1)
 
-    # 检查源文件/目录是否存在
-    settings_sample = source_abs / "misc" / "claude_settings.sample.json"
-    rules_dir = source_abs / ".claude" / "rules"
-    hooks_dir = source_abs / ".claude" / "hooks"
+    ##; 检查源文件/目录是否存在
+    rules_dir = source_abs / "rules"
+    hooks_dir = source_abs / "hooks"
 
     missing = []
-    if not settings_sample.exists():
-        missing.append(str(settings_sample))
     if not rules_dir.exists():
         missing.append(str(rules_dir))
     if not hooks_dir.exists():
@@ -85,14 +85,15 @@ def make_symlink(source:Path, target:Path, description: str):
     Returns:
         bool: 是否成功创建链接
     """
-    # 检查源是否存在
+    ##; 检查源是否存在
+    print("")
     if not source.exists():
         print(f"  跳过 {description}：源不存在")
         return False
 
-    # 检查目标是否已存在
+    ##; 检查目标是否已存在
     if target.exists() or target.is_symlink():
-        # 如果已经是正确的软链接，跳过
+        ##; 如果已经是正确的软链接，跳过
         if target.is_symlink() and target.resolve() == source.resolve():
             print(f"  ✓ {description}：已存在正确的软链接")
             return True
@@ -103,7 +104,7 @@ def make_symlink(source:Path, target:Path, description: str):
             print(f"    跳过")
             return False
 
-        # 删除现有文件/链接
+        ##; 删除现有文件/链接
         if target.is_symlink():
             target.unlink()
         elif target.is_dir():
@@ -112,10 +113,10 @@ def make_symlink(source:Path, target:Path, description: str):
         else:
             target.unlink()
 
-    # 确保目标目录存在
+    ##; 确保目标目录存在
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    # 创建软链接
+    ##; 创建软链接
     try:
         target.symlink_to(source)
         print(f"  ✓ {description}：已创建软链接")
@@ -135,7 +136,7 @@ def make_links_for_subdirs(source, target, description):
         target: 目标目录的绝对路径
         description: 链接描述（用于日志）
     """
-    ## 先判断目标目录是否存在
+    ###; 先判断目标目录是否存在
     abs_target = target.resolve()
     abs_source = source.resolve()
     if not target.exists():
@@ -151,58 +152,99 @@ def make_links_for_subdirs(source, target, description):
         print(f"  跳过 {description}：目标目录与源目录相同")
         return False
     for item in source.iterdir():
-        if item.is_dir():
+        if item.is_dir() and not item.name.startswith("_."):
             src_path = item.resolve()
             dst_path = abs_target / item.name
             make_symlink(src_path, dst_path, f"{description} - {item.name}")
     
 
-def generate_global_settings(source_dir):
+def generate_global_settings(source_dir: Path):
     """
-    从 misc/claude_settings.sample.json 生成全局配置文件
 
     Args:
-        source_dir: 源项目目录（包含 misc/ 目录）
+        source_dir: 源项目目录（包含 hooks/ 目录）
 
     Returns:
         bool: 是否成功生成配置
     """
-    settings_sample = source_dir / "misc" / "claude_settings.sample.json"
+    
     home_dir = Path.home()
     global_settings = home_dir / ".claude" / "settings.json"
 
-    # 检查示例配置是否存在
-    if not settings_sample.exists():
-        print(f"  ⚠️  示例配置不存在: {settings_sample}")
+    ##; 检查示例配置是否存在
+    if not source_dir.exists():
+        print(f"  ⚠️  示例配置目录不存在: {source_dir}")
         return False
 
-    # 备份现有配置
+    ##; 备份现有配置
     if global_settings.exists():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_file = global_settings.parent / f"settings.json.backup.{timestamp}"
         shutil.copy2(global_settings, backup_file)
         print(f"  📦 已备份现有配置到: {backup_file}")
 
-    # 读取示例配置
-    with open(settings_sample, 'r', encoding='utf-8') as f:
-        content = f.read()
+    ##; 读取示例配置
+    default_settings = {
+    "env": {
+        "YJ_CLAUDE_CHAT_SAVE_SPEC": "0",
+        "YJ_CLAUDE_CHAT_SAVE_PLAIN": "0",
+        "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "3000"
+    },
+    "alwaysThinkingEnabled": True,
+    "permissions": {
+        "deny": [
+            "Read(./.DS_Store)",
+            "Read(**/.DS_Store)",
+            "Read(**/__pycache__)",
+            "Read(**/__pycache__/**)",
+            "Write(**/docs/manual/**)" ## 限定必须人工提供的文档
+        ],
+        "allow": [
+            "Bash(echo:*)",
+            "Bash(tree -L 2 -d:*)",
+            "Bash(tree:*)",
+            "Bash(head:*)",
+            "Bash(grep:*)",
+            "Bash(xargs cat:*)",
+            "Bash(xargs ls:*)",
+            "Bash(find:*)",
+            "Bash(wc:*)",
+            "Read(docs/*)",
+            "Write(_.claude_hist/*)",
+            "Bash(cat:*)",
+            "Bash(ls:*)",
+            "Bash(git submodule status:*)"
+        ]
+    },
+    "hooks": {
+        "Stop": [
+            {
+                "hooks": [
+                {
+                    "type": "command",
+                    "command": f"python3 {source_dir}/hooks/save_chat_plain.py"
+                },
+                {
+                    "type": "command",
+                    "command": f"python3 {source_dir}/hooks/save_chat_spec.py"
+                }
+                ]
+            }
+            ]
+        }
+    }
 
-    # 处理路径变量
-    content = content.replace(
-        '{当前项目路径}',
-        '$CLAUDE_PROJECT_DIR'
-    )
-
-    # 确保目标目录存在
+    ##; 处理路径变量
+    content = json.dumps(default_settings, ensure_ascii=False, indent=2)
+    ##; 确保目标目录存在
     global_settings.parent.mkdir(parents=True, exist_ok=True)
 
-    # 写入全局配置
+    ##; 写入全局配置
     with open(global_settings, 'w', encoding='utf-8') as f:
         f.write(content)
 
     print(f"  ✅ 已生成全局配置: {global_settings}")
-    print(f"  📄 使用模板: {settings_sample}")
-
+    print(f"  📄 使用模板: {content}")
     return True
 
 
@@ -214,32 +256,32 @@ def record_linked_project(source_dir, target_path):
         source_dir: 源项目目录
         target_path: 目标项目路径
     """
-    record_file = source_dir / ".claude" / "linked-projects.json"
+    record_file = source_dir /  "_.linked-projects.json"
 
-    # 读取现有记录
+    ##; 读取现有记录
     if record_file.exists():
         with open(record_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
     else:
         data = {"linked-projects": []}
 
-    # 获取目标路径的绝对路径字符串
+    ##; 获取目标路径的绝对路径字符串
     target_str = str(Path(target_path).resolve())
 
-    # 检查是否已记录
+    ##; 检查是否已记录
     existing_projects = {p[0]: p for p in data["linked-projects"]}
 
-    # 添加或更新记录
+    ##; 添加或更新记录
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     existing_projects[target_str] = [target_str, timestamp]
 
-    # 更新数据
+    ##; 更新数据
     data["linked-projects"] = list(existing_projects.values())
 
-    # 确保目录存在
+    ##; 确保目录存在
     record_file.parent.mkdir(parents=True, exist_ok=True)
 
-    # 写入文件
+    ##; 写入文件
     with open(record_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -264,7 +306,7 @@ def read_ignore_file(file_path):
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
                 line = line.rstrip()
-                # 跳过空行和注释行
+                ##; 跳过空行和注释行
                 if line and not line.startswith('#'):
                     valid_lines.append(line)
     except Exception as e:
@@ -294,21 +336,21 @@ def merge_unique(ary1, ary2, ary3):
         'total_unique': 0
     }
 
-    # 合并 ary1
+    ##; 合并 ary1
     for line in ary1:
         if line not in seen:
             seen.add(line)
             merged.append(line)
             stats['ary1_contributed'] += 1
 
-    # 合并 ary2
+    ##; 合并 ary2
     for line in ary2:
         if line not in seen:
             seen.add(line)
             merged.append(line)
             stats['ary2_contributed'] += 1
 
-    # 合并 ary3
+    ##; 合并 ary3
     for line in ary3:
         if line not in seen:
             seen.add(line)
@@ -339,7 +381,7 @@ def init_claudeignore(target_path):
 
     print("\n生成 .claudeignore...")
 
-    # 1. 读取三个来源
+    ##; 1. 读取三个来源
     claudeignore_orig = target_abs / ".claudeignore"
     gitignore_global = Path.home() / ".gitignore_global"
     gitignore_local = target_abs / ".gitignore"
@@ -353,23 +395,23 @@ def init_claudeignore(target_path):
     print(f"    - $HOME/.gitignore_global: {len(ary2)} 条规则")
     print(f"    - .gitignore: {len(ary3)} 条规则")
 
-    # 2. 合并去重
+    ##; 2. 合并去重
     merged, stats = merge_unique(ary1, ary2, ary3)
 
     if not merged:
         print("  ! 没有找到任何 ignore 规则，跳过生成")
         return False
 
-    # 3. 生成新内容
+    ##; 3. 生成新内容
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     content_lines = []
-    content_lines.append(f"## update@{timestamp}")
+    content_lines.append(f"###; update@{timestamp}")
     content_lines.append("")
 
     if stats['ary1_contributed'] > 0:
-        content_lines.append("###### merged from origin .claudeignore")
-        # 只输出来自 ary1 的规则
+        content_lines.append("#######; merged from origin .claudeignore")
+        ##; 只输出来自 ary1 的规则
         for line in merged[:stats['ary1_contributed']]:
             content_lines.append(line)
         content_lines.append("")
@@ -377,22 +419,22 @@ def init_claudeignore(target_path):
     ary2_start = stats['ary1_contributed']
     ary2_end = ary2_start + stats['ary2_contributed']
     if stats['ary2_contributed'] > 0:
-        content_lines.append("###### merged from $HOME/.gitignore_global")
+        content_lines.append("#######; merged from $HOME/.gitignore_global")
         for line in merged[ary2_start:ary2_end]:
             content_lines.append(line)
         content_lines.append("")
 
     ary3_start = ary2_end
     if stats['ary3_contributed'] > 0:
-        content_lines.append("###### merged from .gitignore")
+        content_lines.append("#######; merged from .gitignore")
         for line in merged[ary3_start:]:
             content_lines.append(line)
         content_lines.append("")
 
-    # 4. 写入文件
+    ##; 4. 写入文件
     output_file = target_abs / ".claudeignore"
 
-    # 如果文件存在，备份
+    ##; 如果文件存在，备份
     if output_file.exists():
         backup_name = f".claudeignore.bak.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         backup = target_abs / backup_name
@@ -419,7 +461,7 @@ def init_claudeignore(target_path):
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(
-        description="将当前项目的 .claude 配置软链接到目标项目",
+        description="将当前项目的 ClaudeSettings 模板配置软链接到目标项目",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -428,13 +470,14 @@ def main():
 
 说明:
   此脚本会执行以下操作：
-    1. 从 misc/claude_settings.sample.json 生成 $HOME/.claude/settings.json
-    2. 软链接 .claude/rules -> .claude/rules
-    3. 软链接 .claude/hooks -> .claude/hooks
-    4. 软链接 .claude/skills -> .claude/skills
+    1.从 ClaudeSettings 目录生成全局配置文件 ($HOME/.claude/settings.json)
+    2. 软链接 ClaudeSettings/rules/* -> .claude/rules/*
+    3. 软链接 ClaudeSettings/hooks/* -> .claude/hooks/*
+    4. 软链接 ClaudeSettings/skills/* -> .claude/skills/*
+    4. 软链接 ClaudeSettings/commands/* -> .claude/commands/*
 
   软链接使用绝对路径，确保在不同操作系统上都能正常工作。
-  全局配置允许项目通过 .claude/settings.local.json 覆盖特定设置。
+  全局配置允许项目通过自定义的 <project_path>/.claude/settings.local.json 覆盖特定设置。
         """
     )
     parser.add_argument(
@@ -449,53 +492,58 @@ def main():
 
     args = parser.parse_args()
 
-    # 获取当前脚本所在目录
-    source_dir = Path(os.path.realpath(__file__)).parent
+    ##; 获取当前脚本所在目录
+    #source_dir = Path(os.path.realpath(__file__)).parent
 
-    # 验证路径
-    target_abs, source_abs = validate_paths(args.target_path, source_dir)
+    ##; 验证路径
+    target_abs, source_abs = validate_paths(args.target_path, ZCO_CLAUDE_TPL_DIR)
 
     print(f"\n源项目：{source_abs}")
     print(f"目标项目：{target_abs}")
     print(f"全局配置：$HOME/.claude/settings.json\n")
 
-    # 创建目标 .claude 目录
+    ##; 1. 生成全局配置文件
+    print("生成全局配置...\n")
+    generate_global_settings(ZCO_CLAUDE_TPL_DIR)
+
+    ##; 创建目标 .claude 目录
     target_claude_dir = target_abs / ".claude"
     target_claude_dir.mkdir(exist_ok=True)
 
-    # 创建软链接
+    ##; 创建软链接
     print("开始链接配置到目标项目...\n")
 
     results = []
 
-    # 1. 生成全局配置文件
-    print("生成全局配置...\n")
-    generate_global_settings(source_abs)
-
-    # 2. rules 目录
-    source_rules = source_abs / ".claude" / "rules"
+    ##; 2. rules 目录
+    source_rules = ZCO_CLAUDE_TPL_DIR /  "rules"
     target_rules = target_claude_dir / "rules"
     results.append(make_links_for_subdirs(source_rules, target_rules, "rules 目录"))
 
-    # 3. hooks 目录
-    source_hooks = source_abs / ".claude" / "hooks"
+    ##; 3. hooks 目录
+    source_hooks = ZCO_CLAUDE_TPL_DIR /  "hooks"
     target_hooks = target_claude_dir / "hooks"
     results.append(make_links_for_subdirs(source_hooks, target_hooks, "hooks 目录"))
 
-    # 3. skills 目录
-    source_skills = source_abs / ".claude" / "skills"
+    ##; 3. skills 目录
+    source_skills = ZCO_CLAUDE_TPL_DIR /  "skills"
     target_skills = target_claude_dir / "skills"
     results.append(make_links_for_subdirs(source_skills, target_skills, "skills 目录"))
 
+    ##; 4. commands 目录
+    source_commands = ZCO_CLAUDE_TPL_DIR /  "commands"
+    target_commands = target_claude_dir / "commands"
+    results.append((make_symlink(source_commands, target_commands,  "commands 目录")))
+
     print(f"\n完成！")
     print(f"  - 已生成全局配置")
-    print(f"  - 成功创建 {sum(results)} 个软链接")
+    print(f"  - 成功完成对项目的Claude配置扩展包: {target_abs}")
 
-    # 记录链接的项目
+    ##; 记录链接的项目
     if any(results):
         record_linked_project(source_abs, target_abs)
 
-    # 生成 .claudeignore
+    ##; 生成 .claudeignore
     try:
         init_claudeignore(target_abs)
     except Exception as e:

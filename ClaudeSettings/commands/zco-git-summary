@@ -1,0 +1,15 @@
+#!/bin/bash
+# git-summary - 显示 Git 仓库摘要
+
+echo "📊 Git Repository Summary"
+echo "========================"
+echo ""
+echo "📍 Branch: $(git branch --show-current)"
+echo "📝 Commit: $(git rev-parse --short HEAD)"
+echo "👤 Author: $(git config user.name)"
+echo ""
+echo "📈 Recent commits:"
+git log --oneline -5
+echo ""
+echo "📊 Status:"
+git status --short
