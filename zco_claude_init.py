@@ -23,7 +23,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "v0.0.1.260110"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 #ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
