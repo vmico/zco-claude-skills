@@ -25,10 +25,11 @@ import sys
 import argparse
 import json
 import shutil
+import difflib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.0.1.260110"
+VERSION = "v0.0.2.260110"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 #ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -198,8 +199,131 @@ def make_links_for_subs(source_pdir, target_pdir, description, flag_file=False, 
             make_symlink(src_path, dst_path, f"{description} - {item.name}")
     
 
+def show_diff_side_by_side(old_content: str, new_content: str, width: int = 80):
+    """
+    显示左右对比的彩色 DIFF
+
+    Args:
+        old_content: 旧配置内容
+        new_content: 新配置内容
+        width: 每列的宽度
+    """
+    ##; 分割为行
+    old_lines = old_content.splitlines()
+    new_lines = new_content.splitlines()
+
+    ##; 使用 difflib 生成差异
+    diff = difflib.unified_diff(
+        old_lines,
+        new_lines,
+        lineterm='',
+        fromfile='Current Config',
+        tofile='New Config'
+    )
+
+    ##; 颜色定义
+    ADDED = M_Color.GREEN
+    REMOVED = M_Color.RED
+    CHANGED = M_Color.YELLOW
+    RESET = M_Color.RESET
+    BLUE = M_Color.BLUE
+
+    print("\n" + "=" * (width * 2 + 5))
+    print(f"{BLUE}{'Current Config'.center(width)} | {'New Config'.center(width)}{RESET}")
+    print("=" * (width * 2 + 5))
+
+    ##; 简单的并排显示
+    max_lines = max(len(old_lines), len(new_lines))
+
+    for i in range(max_lines):
+        old_line = old_lines[i] if i < len(old_lines) else ""
+        new_line = new_lines[i] if i < len(new_lines) else ""
+
+        ##; 确定颜色
+        if old_line != new_line:
+            if old_line and not new_line:
+                ##; 删除的行
+                left_color = REMOVED
+                right_color = RESET
+            elif not old_line and new_line:
+                ##; 新增的行
+                left_color = RESET
+                right_color = ADDED
+            else:
+                ##; 修改的行
+                left_color = CHANGED
+                right_color = CHANGED
+        else:
+            ##; 相同的行
+            left_color = RESET
+            right_color = RESET
+
+        ##; 截断或填充到指定宽度
+        old_display = (old_line[:width-3] + '...') if len(old_line) > width else old_line.ljust(width)
+        new_display = (new_line[:width-3] + '...') if len(new_line) > width else new_line.ljust(width)
+
+        print(f"{left_color}{old_display}{RESET} | {right_color}{new_display}{RESET}")
+
+    print("=" * (width * 2 + 5))
+
+
+def show_json_diff(old_json_str: str, new_json_str: str):
+    """
+    显示 JSON 配置的差异（更智能的格式）
+
+    Args:
+        old_json_str: 旧 JSON 字符串
+        new_json_str: 新 JSON 字符串
+    """
+    try:
+        old_obj = json.loads(old_json_str)
+        new_obj = json.loads(new_json_str)
+
+        ##; 格式化输出
+        old_formatted = json.dumps(old_obj, ensure_ascii=False, indent=2)
+        new_formatted = json.dumps(new_obj, ensure_ascii=False, indent=2)
+
+        show_diff_side_by_side(old_formatted, new_formatted, width=70)
+
+    except json.JSONDecodeError as e:
+        pf_color(f"  ⚠️  JSON 解析失败: {e}", M_Color.RED)
+        pf_color("  将显示文本差异...", M_Color.YELLOW)
+        show_diff_side_by_side(old_json_str, new_json_str, width=70)
+
+
+def confirm_update() -> bool:
+    """
+    让用户确认是否执行更新
+
+    Returns:
+        bool: True 表示确认更新，False 表示取消
+    """
+    print("\n" + "=" * 80)
+    pf_color("是否要用新配置覆盖现有配置?", M_Color.YELLOW)
+    print("  [y] 是，更新配置")
+    print("  [n] 否，保留现有配置 (默认)")
+    print("  [d] 显示详细差异")
+    print("=" * 80)
+
+    while True:
+        response = input("\n请选择 (y/n/d): ").lower().strip()
+
+        if response == '' or response == 'n':
+            pf_color("  已取消更新，保留现有配置", M_Color.BLUE)
+            return False
+        elif response == 'y':
+            pf_color("  确认更新配置", M_Color.GREEN)
+            return True
+        elif response == 'd':
+            pf_color("  (详细差异已在上方显示)", M_Color.BLUE)
+            continue
+        else:
+            pf_color(f"  无效的选项: {response}，请输入 y/n/d", M_Color.RED)
+
+
 def generate_global_settings(source_dir: Path):
     """
+    生成全局配置文件，如果已存在则先显示 DIFF 并让用户确认
 
     Args:
         source_dir: 源项目目录（包含 hooks/ 目录）
@@ -207,22 +331,14 @@ def generate_global_settings(source_dir: Path):
     Returns:
         bool: 是否成功生成配置
     """
-    
+
     home_dir = Path.home()
     global_settings = home_dir / ".claude" / "settings.json"
 
     ##; 检查示例配置是否存在
     if not source_dir.exists():
-        print(f"  ⚠️  示例配置目录不存在: {source_dir}")
+        pf_color(f"  ⚠️  示例配置目录不存在: {source_dir}", M_Color.RED)
         return False
-
-    ##; 备份现有配置
-    if global_settings.exists():
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_file = global_settings.parent / f"settings.json.bak.{timestamp}"
-        shutil.copy2(global_settings, backup_file)
-        # pf_color(f"  📦 已备份现有配置到: {backup_file}")
-        pf_color(f"  📦 已备份现有配置到: {backup_file}", M_Color.YELLOW)
 
     ##; 读取示例配置
     default_settings = {
@@ -275,20 +391,50 @@ def generate_global_settings(source_dir: Path):
         }
     }
 
-    ##; 处理路径变量
-    content = json.dumps(default_settings, ensure_ascii=False, indent=2)
+    ##; 生成新配置内容
+    new_content = json.dumps(default_settings, ensure_ascii=False, indent=2)
+
+    ##; 检查现有配置并显示 DIFF
+    if global_settings.exists():
+        pf_color(f"\n⚠️  检测到现有全局配置: {global_settings}", M_Color.YELLOW)
+
+        try:
+            ##; 读取现有配置
+            with open(global_settings, 'r', encoding='utf-8') as f:
+                old_content = f.read()
+
+            ##; 显示 JSON DIFF
+            pf_color("\n📊 配置差异对比:", M_Color.BLUE)
+            show_json_diff(old_content, new_content)
+
+            ##; 让用户确认
+            if not confirm_update():
+                pf_color(f"  ℹ️  已保留现有配置，未做任何更改", M_Color.BLUE)
+                return False
+
+            ##; 用户确认后，备份现有配置
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_file = global_settings.parent / f"settings.json.bak.{timestamp}"
+            shutil.copy2(global_settings, backup_file)
+            pf_color(f"\n  📦 已备份现有配置到: {backup_file}", M_Color.YELLOW)
+
+        except Exception as e:
+            pf_color(f"  ⚠️  读取现有配置失败: {e}", M_Color.RED)
+            pf_color(f"  将直接覆盖...", M_Color.YELLOW)
+
     ##; 确保目标目录存在
     global_settings.parent.mkdir(parents=True, exist_ok=True)
 
     ##; 写入全局配置
-    with open(global_settings, 'w', encoding='utf-8') as f:
-        f.write(content)
+    try:
+        with open(global_settings, 'w', encoding='utf-8') as f:
+            f.write(new_content)
 
-    # print(f"  ✅ 已生成全局配置: {global_settings}")
-    # print(f"  📄 使用模板: {content}")
-    pf_color(f"  ✅ 已生成全局配置: {global_settings}", M_Color.GREEN)
-    pf_color(f"  📄 使用模板: {content}", M_Color.BLUE)
-    return True
+        pf_color(f"\n  ✅ 已生成全局配置: {global_settings}", M_Color.GREEN)
+        return True
+    except Exception as e:
+        pf_color(f"\n  ✗ 写入配置失败: {e}", M_Color.RED)
+        return False
 
 
 def record_linked_project(source_dir, target_path):
