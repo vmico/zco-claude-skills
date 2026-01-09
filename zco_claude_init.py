@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
-zco_claude_init.py - 将当前项目的 .claude 配置软链接到目标项目
+zco_claude_init.py 
+作用:
+  基于 ClaudeSettings 扩展项目的 .claude 配置目录, 快速初始化项目
 
-功能：
-  1. 新建一个 $HOME/.claude/settings.json 全局配置
-  2. 软链接 .claude/rules 目录到目标项目
-  3. 软链接 .claude/hooks 目录到目标项目
-  4. 记录已链接的项目到 _.linked-projects.json
+步骤：
+  0. 为目标项目创建 .claudeignore 文件
+  1. 新建一个 $HOME/.claude/settings.json 全局配置, 有备份
+  2. 软链接 .claude/rules/* 目录到目标项目
+  3. 软链接 .claude/hooks/* 目录到目标项目
+  4. 软链接 .claude/command/*  到目标项目
+  5. 如果目标目录已存在, 则提示是否覆盖
+  6. 记录已链接的项目到 _.linked-projects.json
 
 Usage:
     ./zco_claude_init.py <target_project_path>
@@ -27,6 +32,30 @@ VERSION = "v0.0.1.260110"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 #ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
+
+
+class M_Color:
+    """
+    颜色打印类
+    """
+    GREEN = "\033[92m"
+    BLUE = "\033[94m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    RESET = "\033[0m"
+
+def pf_color(msg: str, color_code:str=M_Color.GREEN):
+    print(f"{color_code}{msg}{M_Color.RESET}")
+
+def debug(*args):
+    """
+    调试打印函数
+
+    Args:
+        *args: 要打印的内容
+    """
+    if os.environ.get("DEBUG"):
+        print("DEBUG:", *args)
 
 def validate_paths(target_path, source_dir):
     """
@@ -67,9 +96,9 @@ def validate_paths(target_path, source_dir):
         missing.append(str(hooks_dir))
 
     if missing:
-        print("警告：以下源文件/目录不存在，将跳过：")
+        pf_color(f"警告：以下源文件/目录不存在，将跳过：", M_Color.YELLOW)
         for m in missing:
-            print(f"  - {m}")
+            pf_color(f"  - {m}", M_Color.YELLOW)
 
     return target_abs, source_abs
 
@@ -88,20 +117,20 @@ def make_symlink(source:Path, target:Path, description: str):
     ##; 检查源是否存在
     print("")
     if not source.exists():
-        print(f"  跳过 {description}：源不存在")
+        pf_color(f"  跳过 {description}：源不存在", M_Color.RED)
         return False
 
     ##; 检查目标是否已存在
     if target.exists() or target.is_symlink():
         ##; 如果已经是正确的软链接，跳过
         if target.is_symlink() and target.resolve() == source.resolve():
-            print(f"  ✓ {description}：已存在正确的软链接")
+            pf_color(f"  ✓ {description}：已存在正确的软链接", M_Color.GREEN)
             return True
 
         print(f"  ! {description}：目标已存在: {target}")
         response = input("    是否删除并重新创建？(y/N): ")
         if response.lower() != 'y':
-            print(f"    跳过")
+            pf_color(f"    跳过 {description}：用户取消", M_Color.YELLOW)
             return False
 
         ##; 删除现有文件/链接
@@ -127,7 +156,8 @@ def make_symlink(source:Path, target:Path, description: str):
         return False
 
 
-def make_links_for_subdirs(source, target, description):
+
+def make_links_for_subs(source_pdir, target_pdir, description, flag_file=False, flag_dir=True):
     """
     创建软链接到子目录
 
@@ -135,24 +165,34 @@ def make_links_for_subdirs(source, target, description):
         source: 源目录的绝对路径
         target: 目标目录的绝对路径
         description: 链接描述（用于日志）
+        flag_file: 筛选允许创建文件软链接
+        flag_dir: 筛选允许创建目录软链接
     """
     ###; 先判断目标目录是否存在
-    abs_target = target.resolve()
-    abs_source = source.resolve()
-    if not target.exists():
-        print(f"  新建 {description}：{abs_target}, 即将对源子目录进行软链接")
-        target.mkdir(parents=True, exist_ok=True)
-    elif not target.is_dir():
-        print(f"  跳过 {description}：目标不是目录: {target}")
+    abs_target = target_pdir.resolve()
+    abs_source = source_pdir.resolve()
+    if not target_pdir.exists():
+        pf_color(f"  新建 {description}：{abs_target}, 即将对源子目录进行软链接", M_Color.BLUE)
+        target_pdir.mkdir(parents=True, exist_ok=True)
+    elif not target_pdir.is_dir():
+        # print(f"  跳过 {description}：目标不是目录: {target_pdir}")
+        pf_color(f"  跳过 {description}：目标不是目录: {target_pdir}", M_Color.RED)
         return False
-    elif target.is_symlink() and abs_target == abs_source:
-        print(f"  跳过 {description}：已经全局软连接")
+    elif target_pdir.is_symlink() and abs_target == abs_source:
+        # print(f"  跳过 {description}：已经全局软连接")
+        pf_color(f"  跳过 {description}：已经全局软连接", M_Color.YELLOW)
         return False
     elif abs_target == abs_source:
-        print(f"  跳过 {description}：目标目录与源目录相同")
+        # pf_color(f"  跳过 {description}：目标目录与源目录相同", M_Color.YELLOW)
         return False
-    for item in source.iterdir():
-        if item.is_dir() and not item.name.startswith("_."):
+    for item in source_pdir.iterdir():
+        if item.name.startswith("_."):
+            pass
+        elif item.is_dir() and flag_dir :
+            src_path = item.resolve()
+            dst_path = abs_target / item.name
+            make_symlink(src_path, dst_path, f"{description} - {item.name}")
+        elif item.is_file() and flag_file and not item.name.startswith("_."):
             src_path = item.resolve()
             dst_path = abs_target / item.name
             make_symlink(src_path, dst_path, f"{description} - {item.name}")
@@ -179,9 +219,10 @@ def generate_global_settings(source_dir: Path):
     ##; 备份现有配置
     if global_settings.exists():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_file = global_settings.parent / f"settings.json.backup.{timestamp}"
+        backup_file = global_settings.parent / f"settings.json.bak.{timestamp}"
         shutil.copy2(global_settings, backup_file)
-        print(f"  📦 已备份现有配置到: {backup_file}")
+        # pf_color(f"  📦 已备份现有配置到: {backup_file}")
+        pf_color(f"  📦 已备份现有配置到: {backup_file}", M_Color.YELLOW)
 
     ##; 读取示例配置
     default_settings = {
@@ -243,8 +284,10 @@ def generate_global_settings(source_dir: Path):
     with open(global_settings, 'w', encoding='utf-8') as f:
         f.write(content)
 
-    print(f"  ✅ 已生成全局配置: {global_settings}")
-    print(f"  📄 使用模板: {content}")
+    # print(f"  ✅ 已生成全局配置: {global_settings}")
+    # print(f"  📄 使用模板: {content}")
+    pf_color(f"  ✅ 已生成全局配置: {global_settings}", M_Color.GREEN)
+    pf_color(f"  📄 使用模板: {content}", M_Color.BLUE)
     return True
 
 
@@ -385,15 +428,19 @@ def init_claudeignore(target_path):
     claudeignore_orig = target_abs / ".claudeignore"
     gitignore_global = Path.home() / ".gitignore_global"
     gitignore_local = target_abs / ".gitignore"
+    m_ignore =  ZCO_CLAUDE_TPL_DIR / "DOT.claudeignore"
 
     ary1 = read_ignore_file(claudeignore_orig)
     ary2 = read_ignore_file(gitignore_global)
     ary3 = read_ignore_file(gitignore_local)
+    ary4 = read_ignore_file(m_ignore)
 
     print(f"  读取源文件:")
     print(f"    - .claudeignore: {len(ary1)} 条规则")
     print(f"    - $HOME/.gitignore_global: {len(ary2)} 条规则")
     print(f"    - .gitignore: {len(ary3)} 条规则")
+    if len(ary2) == 0:
+        ary2 = ary4
 
     ##; 2. 合并去重
     merged, stats = merge_unique(ary1, ary2, ary3)
@@ -461,7 +508,7 @@ def init_claudeignore(target_path):
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(
-        description="将当前项目的 ClaudeSettings 模板配置软链接到目标项目",
+        description="使用模板配置仓库的ClaudeSettings扩展项目的GitRepo的.claude目录",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -518,17 +565,17 @@ def main():
     ##; 2. rules 目录
     source_rules = ZCO_CLAUDE_TPL_DIR /  "rules"
     target_rules = target_claude_dir / "rules"
-    results.append(make_links_for_subdirs(source_rules, target_rules, "rules 目录"))
+    results.append(make_links_for_subs(source_rules, target_rules, "rules 目录"))
 
     ##; 3. hooks 目录
     source_hooks = ZCO_CLAUDE_TPL_DIR /  "hooks"
     target_hooks = target_claude_dir / "hooks"
-    results.append(make_links_for_subdirs(source_hooks, target_hooks, "hooks 目录"))
+    results.append(make_links_for_subs(source_hooks, target_hooks, "hooks 目录"))
 
     ##; 3. skills 目录
     source_skills = ZCO_CLAUDE_TPL_DIR /  "skills"
     target_skills = target_claude_dir / "skills"
-    results.append(make_links_for_subdirs(source_skills, target_skills, "skills 目录"))
+    results.append(make_links_for_subs(source_skills, target_skills, "skills 目录"))
 
     ##; 4. commands 目录
     source_commands = ZCO_CLAUDE_TPL_DIR /  "commands"
