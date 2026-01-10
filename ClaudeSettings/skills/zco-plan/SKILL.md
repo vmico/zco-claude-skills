@@ -124,7 +124,7 @@ tags: []
 ```bash
 # 调用 metadata 更新脚本
 echo '{"plan_path": "docs/plans/plan.002.md", "action": "start", "tags": ["feature", "backend"]}' | \
-  python3 .claude/hooks/scripts/update-plan-metadata.py
+  python3 .claude/zco-scripts/update-plan-metadata.py
 ```
 
 **自动更新的字段**：
@@ -142,11 +142,11 @@ echo '{"plan_path": "docs/plans/plan.002.md", "action": "start", "tags": ["featu
 ```bash
 # 成功完成
 echo '{"plan_path": "docs/plans/plan.002.md", "action": "complete"}' | \
-  python3 .claude/hooks/scripts/update-plan-metadata.py
+  python3 .claude/zco-scripts/update-plan-metadata.py
 
 # 执行失败
 echo '{"plan_path": "docs/plans/plan.002.md", "action": "fail"}' | \
-  python3 .claude/hooks/scripts/update-plan-metadata.py
+  python3 .claude/zco-scripts/update-plan-metadata.py
 ```
 
 ### Step 4: 解析并执行任务
@@ -465,7 +465,7 @@ vim docs/plans/plan.003.260108.md
 **方式 2：使用脚本（如果可用）**
 ```bash
 # 自动创建新计划
-bash .claude/hooks/scripts/co-plan-new.sh 003 "实现用户认证"
+bash .claude/zco-scripts/co-plan-new.sh 003 "实现用户认证"
 ```
 
 ## 💡 最佳实践

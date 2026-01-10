@@ -56,7 +56,7 @@ head -20 CLAUDE.md
 
 ```bash
 # 执行更新
-bash .claude/hooks/scripts/co-docs-update.sh
+bash .claude/zco-scripts/co-docs-update.sh
 ```
 
 **脚本执行流程**：
@@ -172,7 +172,7 @@ sed -e "s|^- \*\*更新时间\*\*:.*|- **更新时间**: $CURRENT_TIME|" \
 
 - ✅ 必须在 Git 仓库根目录或子目录运行
 - ✅ 项目根目录必须存在 `CLAUDE.md` 文件
-- ✅ 脚本必须有执行权限（`chmod +x .claude/hooks/scripts/co-docs-update.sh`）
+- ✅ 脚本必须有执行权限（`chmod +x .claude/zco-scripts/co-docs-update.sh`）
 - ✅ main.go 中需要有 `const version string = "..."` 定义
 
 ### 安全性
@@ -236,10 +236,10 @@ grep "const version" main.go
 **解决方案**：
 ```bash
 # 添加执行权限
-chmod +x .claude/hooks/scripts/co-docs-update.sh
+chmod +x .claude/zco-scripts/co-docs-update.sh
 
 # 验证权限
-ls -l .claude/hooks/scripts/co-docs-update.sh
+ls -l .claude/zco-scripts/co-docs-update.sh
 ```
 
 ### 错误 5: sed 命令失败
@@ -270,7 +270,7 @@ head -20 CLAUDE.md
 ```
 
 **Claude 执行**：
-1. 运行 `bash .claude/hooks/scripts/co-docs-update.sh`
+1. 运行 `bash .claude/zco-scripts/co-docs-update.sh`
 2. 显示更新前后的差异
 3. 询问是否保留备份
 4. 确认更新成功
@@ -340,7 +340,7 @@ head -20 CLAUDE.md
 # .git/hooks/pre-commit
 #!/bin/bash
 if [ -f "CLAUDE.md" ]; then
-    bash .claude/hooks/scripts/co-docs-update.sh -y  # 自动更新
+    bash .claude/zco-scripts/co-docs-update.sh -y  # 自动更新
     git add CLAUDE.md
 fi
 ```
@@ -353,7 +353,7 @@ fi
 check-docs:
   stage: test
   script:
-    - bash .claude/hooks/scripts/co-docs-update.sh
+    - bash .claude/zco-scripts/co-docs-update.sh
     - git diff --exit-code CLAUDE.md || (echo "文档需要更新" && exit 1)
 ```
 

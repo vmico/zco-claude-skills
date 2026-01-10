@@ -75,7 +75,6 @@ def make_default_config():
             "Read(**/.DS_Store)",
             "Read(**/__pycache__)",
             "Read(**/__pycache__/**)",
-            "Read(**/)",
             "Read(**/.zshrc)"  ,      
             "Read(**/.bashrc)",
             "Read(**/.bash_profile)",
@@ -83,6 +82,12 @@ def make_default_config():
             "Write(**/docs/manual/**)"  ## 限定必须人工提供的文档
         ],
         "allow": [
+            "Read(docs/plans/*)",
+            "Write(docs/plans/*)",
+            "Read(readme.md)",
+            "Write(CLAUDE.md)",
+            "Write(_.claude_hist/*)",
+            "Bash(./.claude/commands/*)",  # 允许执行本项目下的自定义命令
             "Bash(echo:*)",
             "Bash(tree -L 2 -d:*)",
             "Bash(tree:*)",
@@ -93,10 +98,6 @@ def make_default_config():
             "Bash(find:*)",
             "Bash(wc:*)",
             "Read(docs/*)",
-            "Read(docs/plans/*)",
-            "Read(readme.md)",
-            "Write(CLAUDE.md)",
-            "Write(_.claude_hist/*)",
             "Bash(cat:*)",
             "Bash(ls:*)",
             "Bash(git submodule status:*)"
@@ -891,6 +892,13 @@ def main():
     source_commands = ZCO_CLAUDE_TPL_DIR /  "commands"
     target_commands = target_claude_dir / "commands"
     n_cnt = (make_links_for_subs(source_commands, target_commands,  "commands 目录", flag_dir=True, flag_file=True))
+
+    ##; 4. zco-scripts 目录
+    source_commands = ZCO_CLAUDE_TPL_DIR /  "zco-scripts"
+    target_commands = target_claude_dir / "zco-scripts"
+    make_symlink(source_commands, target_commands,  "zco-scripts 目录")
+
+    results.append(n_cnt)
     results.append(n_cnt)
 
     pf_color(f"\n✅ 完成！", M_Color.GREEN)
