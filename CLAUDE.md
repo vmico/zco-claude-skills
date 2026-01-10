@@ -10,7 +10,7 @@ This file provides guidance to Claude Code when working with this repository.
 **Repository**: `zco-claude-init`
 **Purpose**: Centralized Claude Code configuration, custom skills library, and development planning system
 
-This repository serves as the **configuration hub** for Claude Code across multiple projects in the YJ-ANNO-SG-Y2025 ecosystem.
+This repository serves as the **configuration hub** for Claude Code across multiple projects according to user habits and project requirements.
 
 ---
 
