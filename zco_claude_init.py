@@ -29,7 +29,7 @@ import difflib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.0.3.260110"
+VERSION = "v0.0.4.260114"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 #ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -64,6 +64,7 @@ def make_default_config():
     source_dir = os.path.abspath(ZCO_CLAUDE_TPL_DIR)
     default_settings = {
     "env": {
+        "ZCO_TPL_VERSION": "v2",
         "YJ_CLAUDE_CHAT_SAVE_SPEC": "0",
         "YJ_CLAUDE_CHAT_SAVE_PLAIN": "0",
         "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "3000"
@@ -71,7 +72,10 @@ def make_default_config():
     "alwaysThinkingEnabled": True,
     "permissions": {
         "deny": [
-            "Read(./.DS_Store)",
+            "Read(~/.ssh/**)",      ##; 防止 AI 尝试读取你的私钥
+            "Read(~/.aws/**)",      ##; 云服务凭证
+            "Read(**/Library/Application Support/Google/Chrome/**)",
+            "Read(./.DS_Store)",    ##; 
             "Read(**/.DS_Store)",
             "Read(**/__pycache__)",
             "Read(**/__pycache__/**)",
@@ -82,7 +86,8 @@ def make_default_config():
             "Read(*._/**)",
         ],
         "ask": [
-            # 需求：读取这些配置文件前必须先询问我
+            # 需求：读取这些配置文件前必须先询问
+            "Read(**/.git/**)",
             "Read(**/app.local.conf)",
             "Read(**/*.local.conf)",
             "Read(**/config.local.yaml)",
@@ -96,6 +101,8 @@ def make_default_config():
             "Write(**/docs/manual/**)"
         ],
         "allow": [
+            # "Bash(echo:*)",
+            # "Bash(cat:*)",
             # ... 你之前的 allow 配置
             "Read(docs/plans/*)",
             "Write(docs/plans/*)",
@@ -105,8 +112,6 @@ def make_default_config():
             "Read(readme.md)",
             "Write(CLAUDE.md)",
             "Write(_.claude_hist/*)",
-            "Bash(./.claude/commands/*)",  # 允许执行本项目下的自定义命令
-            "Bash(echo:*)",
             "Bash(tree -L 2 -d:*)",
             "Bash(tree:*)",
             "Bash(head:*)",
@@ -116,9 +121,12 @@ def make_default_config():
             "Bash(find:*)",
             "Bash(wc:*)",
             "Read(docs/*)",
-            "Bash(cat:*)",
             "Bash(ls:*)",
-            "Bash(git submodule status:*)"
+            "Bash(git submodule status:*)",
+            "Bash(./.claude/commands/*)",       # 允许执行本项目下的自定义命令
+            "Bash(./.claude/zco-scripts/*)",    
+            f"Bash({source_dir}/commands/*)",   
+            f"Bash({source_dir}/zco-scripts/*)"
         ]
     },
     "hooks": {

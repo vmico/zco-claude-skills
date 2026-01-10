@@ -1,11 +1,11 @@
 ---
 seq: 003
 title: "新增 zco-help Skill - 显示项目 Claude 工具帮助信息"
-author: ""
-status: "draft:0"
+author: "Claude"
+status: "completed:3"
 priority: "p2:中:可纳入后续迭代计划"
-created_at: ""
-updated_at: ""
+created_at: "2026-01-13 14:45:00"
+updated_at: "2026-01-13 14:50:00"
 tags: [feature, skill, documentation, help, tooling]
 ---
 

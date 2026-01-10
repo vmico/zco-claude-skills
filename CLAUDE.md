@@ -28,7 +28,8 @@ zco-claude-init/
 │   ├── skills/                       # Custom Claude skills (zco-* prefix)
 │   │   ├── zco-plan/                # Execute development plans
 │   │   ├── zco-plan-new/            # Create new development plans
-│   │   └── zco-docs-update/         # Update CLAUDE.md metadata
+│   │   ├── zco-docs-update/         # Update CLAUDE.md metadata
+│   │   └── zco-help/                # Display available Claude tools
 │   ├── rules/                        # Coding standards and conventions
 │   ├── hooks/                        # Git hooks and automation
 │   ├── commands/                     # Custom commands
@@ -61,11 +62,12 @@ All custom skills use the **zco-** prefix (Zhicheng Custom Operations) to distin
 
 #### Available Skills
 
-| Skill               | Command           | Purpose                                              | Documentation                                              |
-| ------------------- | ----------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
-| **zco-plan**        | `zco-plan {seq}`  | Execute structured development plans                 | [SKILL.md](ClaudeSettings/skills/zco-plan/SKILL.md)        |
-| **zco-plan-new**    | `zco-plan-new`    | Create new development plan from template            | [SKILL.md](ClaudeSettings/skills/zco-plan-new/SKILL.md)    |
-| **zco-docs-update** | `zco-docs-update` | Update CLAUDE.md Git metadata (commit, branch, etc.) | [SKILL.md](ClaudeSettings/skills/zco-docs-update/SKILL.md) |
+| Skill               | Command              | Purpose                                              | Documentation                                              |
+| ------------------- | -------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| **zco-plan**        | `zco-plan {seq}`     | Execute structured development plans                 | [SKILL.md](ClaudeSettings/skills/zco-plan/SKILL.md)        |
+| **zco-plan-new**    | `zco-plan-new`       | Create new development plan from template            | [SKILL.md](ClaudeSettings/skills/zco-plan-new/SKILL.md)    |
+| **zco-docs-update** | `zco-docs-update`    | Update CLAUDE.md Git metadata (commit, branch, etc.) | [SKILL.md](ClaudeSettings/skills/zco-docs-update/SKILL.md) |
+| **zco-help**        | `zco-help [filter]`  | Display available Claude tools with usage info       | [SKILL.md](ClaudeSettings/skills/zco-help/SKILL.md)        |
 
 #### Usage Examples
 
@@ -78,6 +80,15 @@ zco-plan-new
 
 # Update documentation metadata
 zco-docs-update
+
+# Display all available tools
+zco-help
+
+# Display only skills
+zco-help skills
+
+# Display specific skill details
+zco-help zco-plan
 ```
 
 ### 2. Development Plan Management
@@ -267,6 +278,7 @@ zco-plan 001  # Works immediately
 | zco-plan        | [SKILL.md](ClaudeSettings/skills/zco-plan/SKILL.md)        | Execute development plans (400+ lines) |
 | zco-plan-new    | [SKILL.md](ClaudeSettings/skills/zco-plan-new/SKILL.md)    | Create new plans                       |
 | zco-docs-update | [SKILL.md](ClaudeSettings/skills/zco-docs-update/SKILL.md) | Update documentation metadata          |
+| zco-help        | [SKILL.md](ClaudeSettings/skills/zco-help/SKILL.md)        | Display available tools and help info  |
 
 ### Template Documentation
 
@@ -446,6 +458,9 @@ e8cd900 todo: fix zco_claude_init.py
 ### Most Common Commands
 
 ```bash
+# Display all available tools
+zco-help
+
 # Execute a development plan
 zco-plan {seq}
 
