@@ -75,13 +75,31 @@ def make_default_config():
             "Read(**/.DS_Store)",
             "Read(**/__pycache__)",
             "Read(**/__pycache__/**)",
-            "Read(**/.zshrc)"  ,      
+            "Read(*._.*)",
+            "Read(*.bak.*)",
+            "Read(*.tmp.*)",
+            "Read(_.*/**)",
+            "Read(*._/**)",
+        ],
+        "ask": [
+            # 需求：读取这些配置文件前必须先询问我
+            "Read(**/app.local.conf)",
+            "Read(**/*.local.conf)",
+            "Read(**/config.local.yaml)",
+            "Read(**/.env*)",      # 捕获 .env, .env.local 等
+            "Write(**/*.conf)",    # 写入任何配置文件也要询问
+            "Write(**/*.yaml)",
+            "Read(**/.zshrc)",      
             "Read(**/.bashrc)",
             "Read(**/.bash_profile)",
             "Read(**/*.secret.*)",
-            "Write(**/docs/manual/**)"  ## 限定必须人工提供的文档
+            "Write(**/docs/manual/**)"
         ],
         "allow": [
+            # ... 你之前的 allow 配置
+            "Read(docs/plans/*)",
+            "Write(docs/plans/*)",
+            # 注意：不要把上面已经在 ask 里的文件又放进 allow，否则可能直接通过
             "Read(docs/plans/*)",
             "Write(docs/plans/*)",
             "Read(readme.md)",
@@ -213,11 +231,11 @@ def make_symlink(source:Path, target:Path, description: str):
     ##; 创建软链接
     try:
         target.symlink_to(source)
-        print(f"  ✓ {description}：已创建软链接")
-        print(f"    {target} -> {source}")
+        pf_color(f"  ✓ {description}：已创建软链接")
+        # print(f"    {target} -> {source}")
         return True
     except Exception as e:
-        print(f"  ✗ {description}：创建失败 - {e}")
+        pf_color(f"  ✗ {description}：创建失败 - {e}", M_Color.RED)
         return False
 
 
