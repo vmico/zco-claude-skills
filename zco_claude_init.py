@@ -106,12 +106,12 @@ def make_default_config():
             # ... 你之前的 allow 配置
             "Read(docs/plans/*)",
             "Write(docs/plans/*)",
-            # 注意：不要把上面已经在 ask 里的文件又放进 allow，否则可能直接通过
-            "Read(docs/plans/*)",
-            "Write(docs/plans/*)",
+            "Read(docs/*)",
             "Read(readme.md)",
             "Write(CLAUDE.md)",
             "Write(_.claude_hist/*)",
+            "Write(/tmp/*)",
+            # 注意：不要把上面已经在 ask 里的文件又放进 allow，否则可能直接通过
             "Bash(tree -L 2 -d:*)",
             "Bash(tree:*)",
             "Bash(head:*)",
@@ -123,7 +123,9 @@ def make_default_config():
             "Read(docs/*)",
             "Bash(ls:*)",
             "Bash(git submodule status:*)",
-            "Bash(./.claude/commands/*)",       # 允许执行本项目下的自定义命令
+            "Bash(git status:*)",
+             # 允许执行本项目下的自定义命令
+            "Bash(./.claude/commands/*)",      
             "Bash(./.claude/zco-scripts/*)",    
             f"Bash({source_dir}/commands/*)",   
             f"Bash({source_dir}/zco-scripts/*)"
