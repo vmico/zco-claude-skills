@@ -29,11 +29,11 @@ import difflib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.0.4.260114"
+VERSION = "v0.0.5.260205.dev"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 #ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
-
+ZCO_CLAUDE_RECORD_FILE = Path.home() / ".claude" / "zco-linked-projects.json"
 
 
 class M_Color:
@@ -601,8 +601,42 @@ def generate_project_settings(target_path: Path):
     upsert_template_settings(local_settings)
     pf_color(f"\n  Tips: PROJECT/.claude/settings.local.json 优先级最高, 不会影响其他项目配置", M_Color.BLUE)
 
+class RecordItem:
+        def __init__(self, tpl_src_dir, target_path, linked_time):
+            self.tpl_src_dir = tpl_src_dir
+            self.target_path = target_path
+            self.linked_time = linked_time
 
-def record_linked_project(source_dir, target_path):
+        def to_dict(self):
+            return dict(
+                tpl_src_dir=self.tpl_src_dir,
+                target_path=self.target_path,
+                linked_time=self.linked_time,
+            )
+        
+        def from_any(cls, data):
+            if isinstance(data, dict):
+                return cls.from_dict(data)
+            elif isinstance(data, tuple):
+                return cls.from_tuple(*data)
+            else:
+                raise ValueError(f"Unknown data type: {type(data)}")
+        
+        def from_dict(cls, data:dict):
+            return cls(
+                tpl_src_dir=data["tpl_src_dir"],
+                target_path=data["target_path"],
+                linked_time=data["linked_time"],
+            )
+        
+        def from_tuple(cls, target_path, linked_time, *args):
+            return cls(
+                tpl_src_dir="",
+                target_path=target_path,
+                linked_time=linked_time,
+            )
+
+def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD_FILE, record_key="linked-projects"):
     """
     记录已链接的项目
 
@@ -610,27 +644,38 @@ def record_linked_project(source_dir, target_path):
         source_dir: 源项目目录
         target_path: 目标项目路径
     """
-    record_file = source_dir /  "_.linked-projects.json"
+    
 
     ##; 读取现有记录
     if record_file.exists():
         with open(record_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
     else:
-        data = {"linked-projects": []}
-
+        data = dict(
+            VERSION=VERSION,
+            ZCO_CLAUDE_ROOT=str(ZCO_CLAUDE_ROOT),
+            ZCO_CLAUDE_TPL_DIR=str(ZCO_CLAUDE_TPL_DIR),
+        )
+        data[record_key] = []
     ##; 获取目标路径的绝对路径字符串
     target_str = str(Path(target_path).resolve())
 
-    ##; 检查是否已记录
-    existing_projects = {p[0]: p for p in data["linked-projects"]}
-
     ##; 添加或更新记录
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    existing_projects[target_str] = [target_str, timestamp]
-
+    record_items = data.get(record_key, [])
+    for i,item in enumerate(record_items):
+        record_item = RecordItem.from_any(item)
+        if record_item.target_path == target_str:
+            record_item.tpl_src_dir = str(source_dir)
+            record_item.linked_time = timestamp
+            data[record_key][i] = record_item.to_dict()
+            break
+    else:
+        record_item = RecordItem(str(source_dir), target_str, timestamp)
+        data[record_key].append(record_item)
+    
     ##; 更新数据
-    data["linked-projects"] = list(existing_projects.values())
+    data[record_key] = record_items
 
     ##; 确保目录存在
     record_file.parent.mkdir(parents=True, exist_ok=True)

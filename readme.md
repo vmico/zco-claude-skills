@@ -10,14 +10,14 @@
 - 安装 claude
 - 安装 python3 > 3.10
 
-### 1. 安装 yja_claude 工具: `./setup.sh`
+### 1. 安装 zco-claude 工具集: `./setup.sh`
 把当前GitRepo 克隆你的本地, 然后执行仓库里的setup.sh 脚本
 
 
 ![alt text](./docs/samples/A01/image-1.png)
 
-### 2. 进入你要开发的项目, 配置扩展包 `yja-claude .`
-每个项目都要执行一次这个命令, 来安装配置扩展包
+### 2. 进入你要开发的项目, 配置扩展包 `zco-claude .`
+每个项目仅需执行一次这个命令, 来安装配置扩展包
 
 ### 3. 进入项目 `claude .`
 

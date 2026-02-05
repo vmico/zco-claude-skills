@@ -2,12 +2,12 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# M_ALIAS=${1:-"yja-claude"}
+# M_ALIAS=${1:-"zco-claude"}
 M_ALIAS=zco-claude
 M_branch=$(git branch --show-current)
 
 ##; 判断当前分支名是否包含 zco
-if [[ ${M_branch} != *nico* ]]; then
+if [[ ${M_branch} == *nico* ]]; then
   M_ALIAS=yja-claude
 fi
 
