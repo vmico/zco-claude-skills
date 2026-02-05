@@ -1,12 +1,16 @@
 ---
-seq: 004
-title: "增强 zco_claude_init.py 支持多命令模式"
-author: ""
-status: "draft:0"
-priority: "p2:中:可纳入后续迭代计划"
-created_at: ""
-updated_at: ""
-tags: [feature, enhancement, cli, tooling]
+seq: 4
+title: 增强 zco_claude_init.py 支持多命令模式
+author: ''
+status: completed:3
+priority: p2:中:可纳入后续迭代计划
+created_at: '2026-02-05 14:39:00'
+updated_at: '2026-02-05 15:22:53'
+tags:
+- feature
+- enhancement
+- cli
+- tooling
 ---
 
 # 开发任务：增强 zco_claude_init.py 支持多命令模式
@@ -25,17 +29,21 @@ tags: [feature, enhancement, cli, tooling]
    - 保持向后兼容（可选）
 
 #### 2. **子命令 1: `init` - 初始化当前项目**
-   - **功能**：初始化当前工作目录的 `.claude/` 配置
-   - **用法**：`./zco_claude_init.py init`
+   - **功能**：初始化当前工作目录的 `.claude/` 配置目录
+   - **用法**：`./zco_claude_init.py init [project-dir-path] [--tpl tpl-settings-path] `
+    - 默认行为：如果未指定 `project-dir-path`，则使用当前目录
+    - 默认行为：如果未指定 `--tpl`，则使用默认模板 `ZCO_CLAUDE_TPL_DIR`
    - **行为**：
      - 自动检测当前目录（`os.getcwd()`）
      - 执行与原有 `main()` 相同的初始化流程
+     -  默认行为：如果未指定 `project-dir-path`，则使用当前目录
      - 创建软链接、生成配置文件、生成 `.claudeignore`
      - 记录到 `ZCO_CLAUDE_RECORD_FILE`
 
 #### 3. **子命令 2: `list-linked-repos` - 列出已链接项目**
    - **功能**：打印所有已初始化的项目列表
-   - **用法**：`./zco_claude_init.py list-linked-repos`
+   - **用法**：`./zco_claude_init.py list-linked-repos [--record-file record-file-path]`
+   - **默认行为**：如果未指定 `record-file`，则使用默认值 `ZCO_CLAUDE_RECORD_FILE`
    - **输出格式**：
      ```
      [linked_time] [target_path]
@@ -46,7 +54,7 @@ tags: [feature, enhancement, cli, tooling]
      [2026-01-10 09:15:22] /home/user/project2
      [2026-02-05 12:27:00] /home/user/project3
      ```
-   - **数据来源**：读取 `ZCO_CLAUDE_RECORD_FILE` (默认 `~/.claude/zco-linked-projects.json`)
+   - **数据来源**：读取 `record-file` (默认 `~/.claude/zco-linked-projects.json`)
    - **边界情况**：
      - 文件不存在 → 提示 "无已链接项目"
      - 文件为空 → 提示 "无已链接项目"
@@ -54,19 +62,20 @@ tags: [feature, enhancement, cli, tooling]
 
 #### 4. **子命令 3: `fix-linked-repos` - 修复已链接项目**
    - **功能**：检查并修复所有已链接项目的软链接
-   - **用法**：`./zco_claude_init.py fix-linked-repos`
+   - **用法**：`./zco_claude_init.py fix-linked-repos [--record-file record-file-path]`
+   - **默认行为**：如果未指定 `--record-file`，则使用默认值 `ZCO_CLAUDE_RECORD_FILE`
    - **执行流程**：
-     1. 读取 `ZCO_CLAUDE_RECORD_FILE` 获取所有已链接项目
-     2. 对每个项目执行检查：
+      1. 读取 `--record-file` 获取所有已链接项目
+      2. 对每个项目执行检查：
         - 检查 `.claude/rules/*` 软链接是否有效
         - 检查 `.claude/hooks/*` 软链接是否有效
         - 检查 `.claude/skills/*` 软链接是否有效
         - 检查 `.claude/commands/*` 软链接是否有效
         - 检查 `.claude/zco-scripts` 软链接是否有效
-     3. 对无效软链接执行修复：
+      3. 对无效软链接执行修复：
         - 删除失效的软链接
         - 重新创建指向当前 `ZCO_CLAUDE_TPL_DIR` 的软链接
-     4. 更新 `ZCO_CLAUDE_RECORD_FILE` 中的 `linked_time`
+      4. 更新 `ZCO_CLAUDE_RECORD_FILE` 中的 `linked_time`
    - **输出示例**：
      ```
      检查项目: /home/user/project1
@@ -142,15 +151,15 @@ parser.add_argument(
 
 ## ✅ 验证标准
 
-- [ ] 子命令 `init` 正常工作，能初始化当前目录
-- [ ] 子命令 `list-linked-repos` 正确显示所有已链接项目
-- [ ] 子命令 `fix-linked-repos` 能检测并修复失效软链接
-- [ ] 向后兼容：`./zco_claude_init.py /path/to/project` 仍然有效
-- [ ] 所有子命令都有 `--help` 帮助信息
-- [ ] 代码通过 Python linter 检查（pylint/flake8）
-- [ ] 注释使用正确的前缀（`##;` 用于逻辑说明）
-- [ ] 错误处理完善（文件不存在、权限问题、JSON 解析失败等）
-- [ ] 更新 README.md 文档说明新用法
+- [MUST] 子命令 `init` 正常工作，能初始化当前目录
+- [MUST] 子命令 `list-linked-repos` 正确显示所有已链接项目
+- [MUST] 子命令 `fix-linked-repos` 能检测并修复失效软链接
+<!-- - [ ] 向后兼容：`./zco_claude_init.py /path/to/project` 仍然有效 -->
+- [MUST] 所有子命令都有 `--help` 帮助信息
+- [MUST] 代码通过 Python linter 检查（pylint/flake8）
+- [MUST] 注释使用正确的前缀（`##;` 用于逻辑说明）
+- [MUST] 错误处理完善（文件不存在、权限问题、JSON 解析失败等）
+- [MUST] 更新 README.md 文档说明新用法
 
 ## 🧪 测试计划
 
