@@ -13,11 +13,24 @@
 ### 1. 安装 zco-claude 工具集: `./setup.sh`
 把当前GitRepo 克隆你的本地, 然后执行仓库里的setup.sh 脚本
 
-
-![alt text](./docs/samples/A01/image-1.png)
-
-### 2. 进入你要开发的项目, 配置扩展包 `zco-claude .`
+### 2. 进入你要开发的项目, 配置扩展包
 每个项目仅需执行一次这个命令, 来安装配置扩展包
+
+**支持的命令:**
+```bash
+# 初始化指定目录 (旧版本）
+zco-claude /path/to/project
+
+# 初始化当前目录 (当前版本)
+zco-claude init /path/to/project
+
+
+# 列出已链接的项目
+zco-claude list-linked-repos
+
+# 修复已链接项目的软链接
+zco-claude fix-linked-repos
+```
 
 ### 3. 进入项目 `claude .`
 

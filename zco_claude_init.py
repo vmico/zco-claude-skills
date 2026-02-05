@@ -29,7 +29,7 @@ import difflib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.0.5.260205.dev"
+VERSION = "v0.0.6.260205"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 #ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -644,12 +644,19 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
         source_dir: 源项目目录
         target_path: 目标项目路径
     """
-    
-
     ##; 读取现有记录
     if record_file.exists():
-        with open(record_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        try:
+            with open(record_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            ##; 文件损坏，重新创建
+            data = dict(
+                VERSION=VERSION,
+                ZCO_CLAUDE_ROOT=str(ZCO_CLAUDE_ROOT),
+                ZCO_CLAUDE_TPL_DIR=str(ZCO_CLAUDE_TPL_DIR),
+            )
+            data[record_key] = []
     else:
         data = dict(
             VERSION=VERSION,
@@ -657,22 +664,42 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
             ZCO_CLAUDE_TPL_DIR=str(ZCO_CLAUDE_TPL_DIR),
         )
         data[record_key] = []
+
     ##; 获取目标路径的绝对路径字符串
     target_str = str(Path(target_path).resolve())
 
     ##; 添加或更新记录
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     record_items = data.get(record_key, [])
-    for i,item in enumerate(record_items):
-        record_item = RecordItem.from_any(item)
-        if record_item.target_path == target_str:
-            record_item.tpl_src_dir = str(source_dir)
-            record_item.linked_time = timestamp
-            data[record_key][i] = record_item.to_dict()
+    
+    found = False
+    for i, item in enumerate(record_items):
+        if isinstance(item, dict) and item.get("target_path") == target_str:
+            ##; 更新现有记录
+            record_items[i] = {
+                "tpl_src_dir": str(source_dir),
+                "target_path": target_str,
+                "linked_time": timestamp
+            }
+            found = True
             break
-    else:
-        record_item = RecordItem(str(source_dir), target_str, timestamp)
-        data[record_key].append(record_item)
+        elif isinstance(item, (list, tuple)) and len(item) >= 1 and item[0] == target_str:
+            ##; 兼容旧格式，转换为新格式
+            record_items[i] = {
+                "tpl_src_dir": str(source_dir),
+                "target_path": target_str,
+                "linked_time": timestamp
+            }
+            found = True
+            break
+    
+    if not found:
+        ##; 添加新记录
+        record_items.append({
+            "tpl_src_dir": str(source_dir),
+            "target_path": target_str,
+            "linked_time": timestamp
+        })
     
     ##; 更新数据
     data[record_key] = record_items
@@ -861,73 +888,306 @@ def init_claudeignore(target_path):
         return False
 
 
-def main():
-    """主函数"""
-    parser = argparse.ArgumentParser(
-        description="Claude Code 配置管理工具",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-使用方式:
+def is_valid_symlink(link_path: Path, expected_source: Path) -> bool:
+    """
+    检查软链接是否有效
 
-1. 仅生成全局默认配置（不需要参数）:
-  %(prog)s
+    Args:
+        link_path: 软链接路径
+        expected_source: 期望的源路径
 
-  效果: 生成或更新 $HOME/.claude/settings.json
+    Returns:
+        bool: True 表示有效，False 表示无效
+    """
+    if not link_path.exists():
+        return False
 
-2. 为指定项目配置 Claude（提供项目路径）:
-  %(prog)s /path/to/target/project
-  %(prog)s ../another-project
+    if not link_path.is_symlink():
+        return False
 
-  效果:
-    - 生成 <project>/.claude/settings.local.json（项目本地配置）
-    - 软链接 ClaudeSettings/rules/* -> .claude/rules/*
-    - 软链接 ClaudeSettings/hooks/* -> .claude/hooks/*
-    - 软链接 ClaudeSettings/skills/* -> .claude/skills/*
-    - 软链接 ClaudeSettings/commands/* -> .claude/commands/*
-    - 生成 .claudeignore 文件
-    - 注意: 不会重新生成配置
+    ##; 检查软链接是否指向正确的源
+    actual_source = link_path.resolve()
+    return actual_source == expected_source.resolve()
 
-说明:
-  - 配置: $HOME/.claude/settings.json (所有项目共享)
-  - 项目配置: <project>/.claude/settings.local.json (项目特定)
-  - 项目配置可以覆盖配置的特定选项
-        """
-    )
-    parser.add_argument(
-        "target_path",
-        nargs='?',  ##; 参数可选
-        default=None,
-        help="目标项目的路径（可选，不提供则仅生成配置）"
-    )
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {VERSION}"
-    )
 
-    args = parser.parse_args()
+def cmd_init():
+    """
+    子命令: init - 初始化当前项目的 .claude/ 配置
+    """
+    target_path = Path(os.getcwd())
+    
+    pf_color("\n📋 模式: 初始化当前项目", M_Color.BLUE)
+    print(f"目标项目：{target_path}")
+    print(f"项目配置：{target_path}/.claude/settings.local.json\n")
 
-    ##; 情况 1: 没有提供项目路径，仅生成配置
-    if args.target_path is None:
-        pf_color("\n📋 模式: 仅生成配置", M_Color.BLUE)
-        print(f"配置路径: $HOME/.claude/settings.json\n")
+    ##; 验证当前目录
+    if not target_path.exists() or not target_path.is_dir():
+        pf_color(f"错误：当前目录无效: {target_path}", M_Color.RED)
+        sys.exit(1)
 
-        ##; 生成配置
-        print("生成配置...\n")
-        success = generate_global_settings(ZCO_CLAUDE_TPL_DIR)
+    source_abs = ZCO_CLAUDE_TPL_DIR.resolve()
 
-        if success:
-            pf_color("\n✅ 完成！配置已生成或更新。", M_Color.GREEN)
-        else:
-            pf_color("\n⚠️  配置生成失败或被取消。", M_Color.YELLOW)
+    ##; 生成项目本地配置
+    print("生成项目本地配置...\n")
+    generate_project_settings(target_path)
 
+    ##; 创建目标 .claude 目录
+    target_claude_dir = target_path / ".claude"
+    target_claude_dir.mkdir(exist_ok=True)
+
+    ##; 创建软链接
+    print("\n开始链接配置到目标项目...\n")
+
+    results = []
+
+    ##; rules 目录
+    source_rules = ZCO_CLAUDE_TPL_DIR / "rules"
+    target_rules = target_claude_dir / "rules"
+    results.append(make_links_for_subs(source_rules, target_rules, "rules 目录"))
+
+    ##; hooks 目录
+    source_hooks = ZCO_CLAUDE_TPL_DIR / "hooks"
+    target_hooks = target_claude_dir / "hooks"
+    results.append(make_links_for_subs(source_hooks, target_hooks, "hooks 目录"))
+
+    ##; skills 目录
+    source_skills = ZCO_CLAUDE_TPL_DIR / "skills"
+    target_skills = target_claude_dir / "skills"
+    results.append(make_links_for_subs(source_skills, target_skills, "skills 目录"))
+
+    ##; commands 目录
+    source_commands = ZCO_CLAUDE_TPL_DIR / "commands"
+    target_commands = target_claude_dir / "commands"
+    n_cnt = make_links_for_subs(source_commands, target_commands, "commands 目录", flag_dir=True, flag_file=True)
+
+    ##; zco-scripts 目录
+    source_scripts = ZCO_CLAUDE_TPL_DIR / "zco-scripts"
+    target_scripts = target_claude_dir / "zco-scripts"
+    make_symlink(source_scripts, target_scripts, "zco-scripts 目录")
+
+    results.append(n_cnt)
+
+    pf_color(f"\n✅ 完成！", M_Color.GREEN)
+    pf_color(f"  - 已生成项目本地配置")
+    pf_color(f"  - 已生成项目本地配置 .claude/settings.local.json ")
+    pf_color(f"  - 成功完成对项目的 Claude 配置扩展")
+    pf_color(f"    配置扩展源: {target_path}")
+
+    ##; 生成 .claudeignore
+    try:
+        init_claudeignore(target_path)
+    except Exception as e:
+        print(f"\n✗ 生成 .claudeignore 失败: {e}")
+    else:
+        pf_color(f"  - 已生成项目本地配置 .claude/.claudeignore ")
+
+    pf_color(
+        f"""\n建议: 
+        [1] 执行 echo \"**/*.local.*\" >> .gitignore 来忽略本地配置文件
+        [1] 请根据实际情况修改 .claude/settings.local.json 中的配置
+
+        欢迎一起构建和维护健康绿色的 ClaudeSettings 模板库！
+        """, M_Color.BLUE)
+
+    ##; 记录链接的项目
+    if any(results):
+        record_linked_project(source_abs, target_path)
+
+
+def cmd_list_linked_repos():
+    """
+    子命令: list-linked-repos - 列出所有已链接的项目
+    """
+    pf_color("\n📋 已链接项目列表\n", M_Color.BLUE)
+
+    ##; 读取记录文件
+    if not ZCO_CLAUDE_RECORD_FILE.exists():
+        print("无已链接项目")
         return
 
-    ##; 情况 2: 提供了项目路径，配置特定项目
+    try:
+        with open(ZCO_CLAUDE_RECORD_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        pf_color(f"错误：无法解析记录文件 - {e}", M_Color.RED)
+        return
+    except Exception as e:
+        pf_color(f"错误：读取记录文件失败 - {e}", M_Color.RED)
+        return
+
+    record_key = "linked-projects"
+    record_items = data.get(record_key, [])
+
+    if not record_items:
+        print("无已链接项目")
+        return
+
+    ##; 格式化输出
+    print(f"{'链接时间':<22} {'项目路径'}")
+    print("-" * 80)
+
+    for item in record_items:
+        if isinstance(item, dict):
+            linked_time = item.get("linked_time", "未知")
+            target_path = item.get("target_path", "未知")
+        elif isinstance(item, (list, tuple)) and len(item) >= 2:
+            ##; 兼容旧格式 (target_path, linked_time, ...)
+            target_path = item[0]
+            linked_time = item[1]
+        else:
+            continue
+
+        print(f"[{linked_time}] {target_path}")
+
+    print(f"\n总计: {len(record_items)} 个项目")
+
+
+def cmd_fix_linked_repos():
+    """
+    子命令: fix-linked-repos - 修复已链接项目的软链接
+    """
+    pf_color("\n🔧 修复已链接项目的软链接\n", M_Color.BLUE)
+
+    ##; 读取记录文件
+    if not ZCO_CLAUDE_RECORD_FILE.exists():
+        print("无已链接项目")
+        return
+
+    try:
+        with open(ZCO_CLAUDE_RECORD_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        pf_color(f"错误：无法解析记录文件 - {e}", M_Color.RED)
+        return
+    except Exception as e:
+        pf_color(f"错误：读取记录文件失败 - {e}", M_Color.RED)
+        return
+
+    record_key = "linked-projects"
+    record_items = data.get(record_key, [])
+
+    if not record_items:
+        print("无已链接项目")
+        return
+
+    source_abs = ZCO_CLAUDE_TPL_DIR.resolve()
+    total_checked = 0
+    total_fixed = 0
+    total_valid = 0
+    total_projects = 0
+
+    ##; 需要检查的子目录
+    subdirs = ['rules', 'hooks', 'skills', 'commands']
+
+    for item in record_items:
+        ##; 解析记录项
+        if isinstance(item, dict):
+            target_path_str = item.get("target_path", "")
+        elif isinstance(item, (list, tuple)) and len(item) >= 1:
+            target_path_str = item[0]
+        else:
+            continue
+
+        target_path = Path(target_path_str)
+
+        ##; 检查项目是否存在
+        if not target_path.exists():
+            pf_color(f"⚠️  项目不存在，跳过: {target_path}", M_Color.YELLOW)
+            continue
+
+        total_projects += 1
+        print(f"\n检查项目: {target_path}")
+
+        target_claude_dir = target_path / ".claude"
+        if not target_claude_dir.exists():
+            pf_color(f"  跳过: .claude 目录不存在", M_Color.YELLOW)
+            continue
+
+        project_checked = 0
+        project_fixed = 0
+        project_valid = 0
+
+        ##; 检查每个子目录的软链接
+        for subdir in subdirs:
+            source_subdir = source_abs / subdir
+            target_subdir = target_claude_dir / subdir
+
+            if not target_subdir.exists():
+                continue
+
+            if not source_subdir.exists():
+                pf_color(f"  跳过 {subdir}: 源目录不存在", M_Color.YELLOW)
+                continue
+
+            for item_path in target_subdir.iterdir():
+                project_checked += 1
+                total_checked += 1
+
+                ##; 确定期望的源路径
+                source_item = source_subdir / item_path.name
+
+                if is_valid_symlink(item_path, source_item):
+                    project_valid += 1
+                    total_valid += 1
+                    print(f"  ✓ {subdir}/{item_path.name} → 有效")
+                else:
+                    ##; 删除失效链接
+                    try:
+                        if item_path.is_symlink() or item_path.exists():
+                            item_path.unlink()
+
+                        ##; 重新创建
+                        if source_item.exists():
+                            item_path.symlink_to(source_item)
+                            project_fixed += 1
+                            total_fixed += 1
+                            pf_color(f"  ✗ {subdir}/{item_path.name} → 失效，已修复", M_Color.YELLOW)
+                        else:
+                            pf_color(f"  ✗ {subdir}/{item_path.name} → 失效，源不存在", M_Color.RED)
+                    except Exception as e:
+                        pf_color(f"  ✗ {subdir}/{item_path.name} → 修复失败: {e}", M_Color.RED)
+
+        ##; 显示项目修复摘要
+        if project_checked > 0:
+            if project_fixed == 0:
+                print(f"  ✓ 所有软链接有效 ({project_valid}/{project_checked})")
+            else:
+                print(f"  修复: {project_fixed}, 有效: {project_valid}, 总计: {project_checked}")
+
+    ##; 更新记录文件中的时间戳
+    if total_fixed > 0:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for i, item in enumerate(record_items):
+            if isinstance(item, dict):
+                record_items[i]["linked_time"] = timestamp
+            elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                ##; 旧格式无法更新时间戳
+                pass
+
+        data[record_key] = record_items
+        try:
+            with open(ZCO_CLAUDE_RECORD_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            pf_color(f"\n⚠️  更新记录文件失败: {e}", M_Color.YELLOW)
+
+    ##; 显示总体摘要
+    print(f"\n{'='*60}")
+    pf_color("修复完成：", M_Color.GREEN)
+    print(f"  - 检查项目数: {total_projects}")
+    print(f"  - 检查软链接数: {total_checked}")
+    print(f"  - 有效软链接: {total_valid}")
+    print(f"  - 修复软链接: {total_fixed}")
+
+
+def run_init_legacy(target_path):
+    """
+    兼容旧版：初始化指定项目
+    """
     pf_color("\n📋 模式: 配置指定项目", M_Color.BLUE)
 
     ##; 验证路径
-    target_abs, source_abs = validate_paths(args.target_path, ZCO_CLAUDE_TPL_DIR)
+    target_abs, source_abs = validate_paths(target_path, ZCO_CLAUDE_TPL_DIR)
 
     print(f"\n源项目：{source_abs}")
     print(f"目标项目：{target_abs}")
@@ -946,32 +1206,31 @@ def main():
 
     results = []
 
-    ##; 2. rules 目录
-    source_rules = ZCO_CLAUDE_TPL_DIR /  "rules"
+    ##; rules 目录
+    source_rules = ZCO_CLAUDE_TPL_DIR / "rules"
     target_rules = target_claude_dir / "rules"
     results.append(make_links_for_subs(source_rules, target_rules, "rules 目录"))
 
-    ##; 3. hooks 目录
-    source_hooks = ZCO_CLAUDE_TPL_DIR /  "hooks"
+    ##; hooks 目录
+    source_hooks = ZCO_CLAUDE_TPL_DIR / "hooks"
     target_hooks = target_claude_dir / "hooks"
     results.append(make_links_for_subs(source_hooks, target_hooks, "hooks 目录"))
 
-    ##; 3. skills 目录
-    source_skills = ZCO_CLAUDE_TPL_DIR /  "skills"
+    ##; skills 目录
+    source_skills = ZCO_CLAUDE_TPL_DIR / "skills"
     target_skills = target_claude_dir / "skills"
     results.append(make_links_for_subs(source_skills, target_skills, "skills 目录"))
 
-    ##; 4. commands 目录
-    source_commands = ZCO_CLAUDE_TPL_DIR /  "commands"
+    ##; commands 目录
+    source_commands = ZCO_CLAUDE_TPL_DIR / "commands"
     target_commands = target_claude_dir / "commands"
-    n_cnt = (make_links_for_subs(source_commands, target_commands,  "commands 目录", flag_dir=True, flag_file=True))
+    n_cnt = make_links_for_subs(source_commands, target_commands, "commands 目录", flag_dir=True, flag_file=True)
 
-    ##; 4. zco-scripts 目录
-    source_commands = ZCO_CLAUDE_TPL_DIR /  "zco-scripts"
-    target_commands = target_claude_dir / "zco-scripts"
-    make_symlink(source_commands, target_commands,  "zco-scripts 目录")
+    ##; zco-scripts 目录
+    source_scripts = ZCO_CLAUDE_TPL_DIR / "zco-scripts"
+    target_scripts = target_claude_dir / "zco-scripts"
+    make_symlink(source_scripts, target_scripts, "zco-scripts 目录")
 
-    results.append(n_cnt)
     results.append(n_cnt)
 
     pf_color(f"\n✅ 完成！", M_Color.GREEN)
@@ -979,6 +1238,7 @@ def main():
     pf_color(f"  - 已生成项目本地配置 .claude/settings.local.json ")
     pf_color(f"  - 成功完成对项目的 Claude 配置扩展")
     pf_color(f"    配置扩展源: {target_abs}")
+
     ##; 生成 .claudeignore
     try:
         init_claudeignore(target_abs)
@@ -994,11 +1254,128 @@ def main():
 
         欢迎一起构建和维护健康绿色的 ClaudeSettings 模板库！
         """, M_Color.BLUE)
-    
-    pf_color(f"", M_Color.BLUE)
+
     ##; 记录链接的项目
     if any(results):
         record_linked_project(source_abs, target_abs)
+
+
+def main():
+    """主函数"""
+    ##; 向后兼容：检查第一个参数是否是子命令或路径
+    import sys
+    argv = sys.argv[1:]
+    
+    ##; 定义有效的子命令
+    valid_commands = {'init', 'list-linked-repos', 'fix-linked-repos'}
+    
+    ##; 检查是否是旧版用法（第一个参数是路径而不是子命令）
+    is_legacy = False
+    if argv and argv[0] not in valid_commands and not argv[0].startswith('-'):
+        ##; 第一个参数既不是子命令也不是选项，可能是路径
+        ##; 但需要排除 help 和 version
+        if argv[0] not in ('-h', '--help', '--version'):
+            ##; 检查是否是有效的路径
+            potential_path = Path(argv[0])
+            if potential_path.exists() and potential_path.is_dir():
+                is_legacy = True
+            elif '/' in argv[0] or argv[0].startswith('.'):
+                ##; 包含路径分隔符或以 . 开头，可能是路径
+                is_legacy = True
+    
+    if is_legacy:
+        ##; 旧版用法：第一个参数是目标路径
+        target_path = argv[0]
+        run_init_legacy(target_path)
+        return
+
+    ##; 创建主解析器
+    parser = argparse.ArgumentParser(
+        description="Claude Code 配置管理工具",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用方式:
+
+1. 初始化当前项目:
+   %(prog)s init
+
+2. 列出已链接项目:
+   %(prog)s list-linked-repos
+
+3. 修复已链接项目的软链接:
+   %(prog)s fix-linked-repos
+
+4. 仅生成全局默认配置（旧版兼容）:
+   %(prog)s
+
+5. 为指定项目配置（旧版兼容）:
+   %(prog)s /path/to/target/project
+
+说明:
+  - init: 在当前目录初始化 .claude/ 配置
+  - list-linked-repos: 显示所有已初始化的项目列表
+  - fix-linked-repos: 检查并修复所有软链接
+  - 旧版用法仍然兼容
+        """
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {VERSION}"
+    )
+
+    ##; 创建子命令解析器
+    subparsers = parser.add_subparsers(dest='command', help='可用命令')
+
+    ##; 子命令: init
+    parser_init = subparsers.add_parser(
+        'init',
+        help='初始化当前项目的 .claude/ 配置',
+        description='在当前目录（os.getcwd()）创建 .claude/ 目录和软链接'
+    )
+
+    ##; 子命令: list-linked-repos
+    parser_list = subparsers.add_parser(
+        'list-linked-repos',
+        help='列出所有已链接的项目',
+        description='读取 ~/.claude/zco-linked-projects.json 并显示所有已初始化项目'
+    )
+
+    ##; 子命令: fix-linked-repos
+    parser_fix = subparsers.add_parser(
+        'fix-linked-repos',
+        help='修复已链接项目的软链接',
+        description='检查所有已链接项目的软链接，删除失效链接并重新创建'
+    )
+
+    ##; 解析参数
+    args = parser.parse_args()
+
+    ##; 处理子命令
+    if args.command == 'init':
+        cmd_init()
+        return
+
+    elif args.command == 'list-linked-repos':
+        cmd_list_linked_repos()
+        return
+
+    elif args.command == 'fix-linked-repos':
+        cmd_fix_linked_repos()
+        return
+
+    ##; 没有子命令: 仅生成全局配置
+    pf_color("\n📋 模式: 仅生成配置", M_Color.BLUE)
+    print(f"配置路径: $HOME/.claude/settings.json\n")
+
+    ##; 生成配置
+    print("生成配置...\n")
+    success = generate_global_settings(ZCO_CLAUDE_TPL_DIR)
+
+    if success:
+        pf_color("\n✅ 完成！配置已生成或更新。", M_Color.GREEN)
+    else:
+        pf_color("\n⚠️  配置生成失败或被取消。", M_Color.YELLOW)
     
 
 if __name__ == "__main__":
