@@ -620,47 +620,99 @@ def generate_project_settings(target_path: Path):
     pf_color(f"\n  Tips: PROJECT/.claude/settings.local.json 优先级最高, 不会影响其他项目配置", M_Color.CYAN)
 
 class RecordItem:
-        def __init__(self, tpl_src_dir, target_path, linked_time):
-            self.tpl_src_dir = tpl_src_dir
-            self.target_path = target_path
-            self.linked_time = linked_time
+    """
+    记录项目链接信息的数据类
+    
+    Attributes:
+        tpl_src_dir: 模板源目录
+        target_path: 目标项目路径
+        linked_time: 链接时间
+        check_time: 最新检查时间
+        check_status: 检查状态 (exist/not-found)
+        IsGitRepo: 是否为Git仓库
+    """
+    
+    def __init__(self, tpl_src_dir, target_path, linked_time, 
+                 check_time=None, check_status=None, IsGitRepo=None):
+        self.tpl_src_dir = tpl_src_dir
+        self.target_path = target_path
+        self.linked_time = linked_time
+        self.check_time = check_time
+        self.check_status = check_status
+        self.IsGitRepo = IsGitRepo
 
-        def to_dict(self):
-            return dict(
-                tpl_src_dir=self.tpl_src_dir,
-                target_path=self.target_path,
-                linked_time=self.linked_time,
-            )
-        
-        def from_any(cls, data):
-            if isinstance(data, dict):
-                return cls.from_dict(data)
-            elif isinstance(data, tuple):
-                return cls.from_tuple(*data)
-            else:
-                raise ValueError(f"Unknown data type: {type(data)}")
-        
-        def from_dict(cls, data:dict):
-            return cls(
-                tpl_src_dir=data["tpl_src_dir"],
-                target_path=data["target_path"],
-                linked_time=data["linked_time"],
-            )
-        
-        def from_tuple(cls, target_path, linked_time, *args):
-            return cls(
-                tpl_src_dir="",
-                target_path=target_path,
-                linked_time=linked_time,
-            )
+    def to_dict(self):
+        """转换为字典格式，只包含非 None 的字段"""
+        result = dict(
+            tpl_src_dir=self.tpl_src_dir,
+            target_path=self.target_path,
+            linked_time=self.linked_time,
+        )
+        if self.check_time is not None:
+            result["check_time"] = self.check_time
+        if self.check_status is not None:
+            result["check_status"] = self.check_status
+        if self.IsGitRepo is not None:
+            result["IsGitRepo"] = self.IsGitRepo
+        return result
+    
+    @classmethod
+    def from_dict(cls, data: dict):
+        """从字典创建 RecordItem"""
+        return cls(
+            tpl_src_dir=data.get("tpl_src_dir", ""),
+            target_path=data.get("target_path", ""),
+            linked_time=data.get("linked_time", ""),
+            check_time=data.get("check_time"),
+            check_status=data.get("check_status"),
+            IsGitRepo=data.get("IsGitRepo"),
+        )
+    
+    @classmethod
+    def from_tuple(cls, target_path, linked_time, *args):
+        """从元组创建 RecordItem（兼容旧格式）"""
+        return cls(
+            tpl_src_dir="",
+            target_path=target_path,
+            linked_time=linked_time,
+        )
+    
+    @classmethod
+    def from_any(cls, data):
+        """从任意格式创建 RecordItem"""
+        if isinstance(data, dict):
+            return cls.from_dict(data)
+        elif isinstance(data, (list, tuple)):
+            return cls.from_tuple(*data)
+        else:
+            raise ValueError(f"Unknown data type: {type(data)}")
 
-def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD_FILE, record_key="linked-projects"):
+def is_git_repo(path: Path) -> bool:
+    """
+    检查指定路径是否为 Git 仓库
+    
+    Args:
+        path: 要检查的路径
+        
+    Returns:
+        bool: True 如果是 Git 仓库
+    """
+    git_dir = path / ".git"
+    return git_dir.exists() and git_dir.is_dir()
+
+
+def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD_FILE, 
+                          record_key="linked-projects", check_time=None, check_status=None):
     """
     记录已链接的项目
 
     Args:
         source_dir: 源项目目录
         target_path: 目标项目路径
+        record_file: 记录文件路径
+        record_key: 记录键名
+        check_time: 检查时间（可选）
+        check_status: 检查状态（可选）
     """
     ##; 读取现有记录
     if record_file.exists():
@@ -685,6 +737,10 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
 
     ##; 获取目标路径的绝对路径字符串
     target_str = str(Path(target_path).resolve())
+    target_path_obj = Path(target_path)
+
+    ##; 检查是否为 Git 仓库
+    is_git = is_git_repo(target_path_obj) if target_path_obj.exists() else None
 
     ##; 添加或更新记录
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -697,7 +753,10 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
             record_items[i] = {
                 "tpl_src_dir": str(source_dir),
                 "target_path": target_str,
-                "linked_time": timestamp
+                "linked_time": item.get("linked_time", timestamp),
+                "check_time": check_time if check_time else timestamp,
+                "check_status": check_status if check_status else ("exist" if target_path_obj.exists() else "not-found"),
+                "IsGitRepo": is_git
             }
             found = True
             break
@@ -706,7 +765,10 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
             record_items[i] = {
                 "tpl_src_dir": str(source_dir),
                 "target_path": target_str,
-                "linked_time": timestamp
+                "linked_time": timestamp,
+                "check_time": check_time if check_time else timestamp,
+                "check_status": check_status if check_status else ("exist" if target_path_obj.exists() else "not-found"),
+                "IsGitRepo": is_git
             }
             found = True
             break
@@ -716,7 +778,10 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
         record_items.append({
             "tpl_src_dir": str(source_dir),
             "target_path": target_str,
-            "linked_time": timestamp
+            "linked_time": timestamp,
+            "check_time": check_time if check_time else timestamp,
+            "check_status": check_status if check_status else ("exist" if target_path_obj.exists() else "not-found"),
+            "IsGitRepo": is_git
         })
     
     ##; 更新数据
@@ -1086,12 +1151,13 @@ def cmd_list_linked_repos(record_file=None):
     pf_color(f"\n总计: {len(record_items)} 个项目")
 
 
-def cmd_fix_linked_repos(record_file=None):
+def cmd_fix_linked_repos(record_file=None, remove_not_found=False):
     """
     子命令: fix-linked-repos - 修复已链接项目的软链接
 
     Args:
         record_file: 记录文件路径，默认为 ZCO_CLAUDE_RECORD_FILE
+        remove_not_found: 是否删除不存在的项目记录
     """
     ##; 确定记录文件路径
     if record_file is None:
@@ -1129,32 +1195,52 @@ def cmd_fix_linked_repos(record_file=None):
     total_fixed = 0
     total_valid = 0
     total_projects = 0
+    removed_count = 0
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     ##; 需要检查的子目录
     subdirs = ['rules', 'hooks', 'skills', 'commands']
 
+    ##; 创建新的记录列表（用于过滤已删除的项目）
+    new_record_items = []
+
     for item in record_items:
         ##; 解析记录项
-        if isinstance(item, dict):
-            target_path_str = item.get("target_path", "")
-        elif isinstance(item, (list, tuple)) and len(item) >= 1:
-            target_path_str = item[0]
-        else:
-            continue
-
-        target_path = Path(target_path_str)
+        record_item = RecordItem.from_any(item)
+        target_path = Path(record_item.target_path)
 
         ##; 检查项目是否存在
         if not target_path.exists():
-            pf_color(f"⚠️  项目不存在，跳过: {target_path}", M_Color.YELLOW)
-            continue
+            check_status = "not-found"
+            is_git = None
+            
+            if remove_not_found:
+                pf_color(f"⚠️  项目不存在，已从记录中移除: {target_path}", M_Color.YELLOW)
+                removed_count += 1
+                continue  ##; 跳过添加到新列表
+            else:
+                pf_color(f"⚠️  项目不存在: {target_path}", M_Color.YELLOW)
+                ##; 更新记录字段
+                record_item.check_time = timestamp
+                record_item.check_status = check_status
+                record_item.IsGitRepo = is_git
+                new_record_items.append(record_item.to_dict())
+                continue
 
+        ##; 项目存在，进行修复检查
         total_projects += 1
-        print(f"\n检查项目: {target_path}")
+        check_status = "exist"
+        is_git = is_git_repo(target_path)
+        print(f"\n检查项目: {target_path} (Git: {is_git})")
 
         target_claude_dir = target_path / ".claude"
         if not target_claude_dir.exists():
             pf_color(f"  跳过: .claude 目录不存在", M_Color.YELLOW)
+            ##; 仍然更新记录字段
+            record_item.check_time = timestamp
+            record_item.check_status = check_status
+            record_item.IsGitRepo = is_git
+            new_record_items.append(record_item.to_dict())
             continue
 
         project_checked = 0
@@ -1217,25 +1303,31 @@ def cmd_fix_linked_repos(record_file=None):
             else:
                 print(f"  修复: {project_fixed}, 有效: {project_valid}, 总计: {project_checked}")
 
-    ##; 更新记录文件中的时间戳
-    if total_fixed > 0:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        for i, item in enumerate(record_items):
-            if isinstance(item, dict):
-                record_items[i]["linked_time"] = timestamp
-            elif isinstance(item, (list, tuple)) and len(item) >= 2:
-                ##; 旧格式无法更新时间戳
-                pass
+        ##; 更新记录字段
+        record_item.check_time = timestamp
+        record_item.check_status = check_status
+        record_item.IsGitRepo = is_git
+        new_record_items.append(record_item.to_dict())
 
-        data[record_key] = record_items
-        try:
-            with open(ZCO_CLAUDE_RECORD_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            pf_color(f"\n⚠️  更新记录文件失败: {e}", M_Color.YELLOW)
+    ##; 更新记录文件
+    data[record_key] = new_record_items
+    try:
+        with open(record_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"\n{M_Color.GREEN}✓ 记录文件已更新{M_Color.RESET}")
+    except Exception as e:
+        pf_color(f"\n⚠️  更新记录文件失败: {e}", M_Color.YELLOW)
 
     ##; 显示总体摘要
     print(f"\n{'='*60}")
+    pf_color("修复完成：", M_Color.GREEN)
+    print(f"  - 检查项目数: {total_projects}")
+    print(f"  - 检查软链接数: {total_checked}")
+    print(f"  - 有效软链接: {total_valid}")
+    print(f"  - 修复软链接: {total_fixed}")
+    if remove_not_found:
+        print(f"  - 移除不存在项目: {removed_count}")
+    print(f"  - 记录项目数: {len(new_record_items)}")
     pf_color("修复完成：", M_Color.GREEN)
     print(f"  - 检查项目数: {total_projects}")
     print(f"  - 检查软链接数: {total_checked}")
@@ -1323,6 +1415,128 @@ def run_init_legacy(target_path):
         record_linked_project(source_abs, target_abs)
 
 
+def cmd_fix(project_path=None, tpl_dir=None, record_file=None):
+    """
+    子命令: fix - 修复指定项目的软链接并更新记录
+
+    Args:
+        project_path: 目标项目路径，默认为当前目录
+        tpl_dir: 模板目录路径，默认为 ZCO_CLAUDE_TPL_DIR
+        record_file: 记录文件路径，默认为 ZCO_CLAUDE_RECORD_FILE
+    """
+    ##; 确定目标路径
+    if project_path is None:
+        target_path = Path(os.getcwd())
+    else:
+        target_path = Path(project_path)
+
+    ##; 确定模板目录
+    if tpl_dir is None:
+        source_abs = ZCO_CLAUDE_TPL_DIR.resolve()
+    else:
+        source_abs = Path(tpl_dir).resolve()
+        if not source_abs.exists():
+            pf_color(f"错误：模板目录不存在: {source_abs}", M_Color.RED)
+            sys.exit(1)
+
+    ##; 确定记录文件
+    if record_file is None:
+        record_file = ZCO_CLAUDE_RECORD_FILE
+    else:
+        record_file = Path(record_file)
+
+    pf_color("\n🔧 修复项目软链接\n", M_Color.CYAN)
+    print(f"目标项目：{target_path}")
+    print(f"模板目录：{source_abs}\n")
+
+    ##; 检查项目是否存在
+    if not target_path.exists():
+        pf_color(f"错误：项目不存在: {target_path}", M_Color.RED)
+        ##; 仍然更新记录
+        record_linked_project(source_abs, target_path, record_file=record_file, 
+                              check_status="not-found")
+        return
+
+    ##; 检查是否为 Git 仓库
+    is_git = is_git_repo(target_path)
+
+    target_claude_dir = target_path / ".claude"
+    if not target_claude_dir.exists():
+        pf_color(f"警告：.claude 目录不存在，创建中...", M_Color.YELLOW)
+        target_claude_dir.mkdir(parents=True, exist_ok=True)
+
+    ##; 需要检查的子目录
+    subdirs = ['rules', 'hooks', 'skills', 'commands']
+    total_checked = 0
+    total_fixed = 0
+    total_valid = 0
+
+    print("开始检查和修复软链接...\n")
+
+    for subdir in subdirs:
+        source_subdir = source_abs / subdir
+        target_subdir = target_claude_dir / subdir
+
+        if not source_subdir.exists():
+            pf_color(f"  跳过 {subdir}: 源目录不存在", M_Color.YELLOW)
+            continue
+
+        ##; 确保目标子目录存在
+        if not target_subdir.exists():
+            target_subdir.mkdir(parents=True, exist_ok=True)
+
+        for item in source_subdir.iterdir():
+            if item.name.startswith("_."):
+                continue
+
+            target_item = target_subdir / item.name
+            total_checked += 1
+
+            if is_valid_symlink(target_item, item):
+                total_valid += 1
+                print(f"  ✓ {subdir}/{item.name} → 有效")
+            else:
+                ##; 删除失效链接或文件
+                try:
+                    if target_item.exists() or target_item.is_symlink():
+                        target_item.unlink()
+                    ##; 重新创建
+                    target_item.symlink_to(item)
+                    total_fixed += 1
+                    pf_color(f"  † {subdir}/{item.name} → 已修复", M_Color.YELLOW)
+                except Exception as e:
+                    pf_color(f"  ✗ {subdir}/{item.name} → 修复失败: {e}", M_Color.RED)
+
+    ##; 处理 zco-scripts 目录
+    source_scripts = source_abs / "zco-scripts"
+    target_scripts = target_claude_dir / "zco-scripts"
+    if source_scripts.exists():
+        if is_valid_symlink(target_scripts, source_scripts):
+            print(f"  ✓ zco-scripts → 有效")
+        else:
+            try:
+                if target_scripts.exists() or target_scripts.is_symlink():
+                    target_scripts.unlink()
+                target_scripts.symlink_to(source_scripts)
+                pf_color(f"  † zco-scripts → 已修复", M_Color.YELLOW)
+            except Exception as e:
+                pf_color(f"  ✗ zco-scripts → 修复失败: {e}", M_Color.RED)
+
+    ##; 更新记录
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    record_linked_project(source_abs, target_path, record_file=record_file,
+                          check_time=timestamp, check_status="exist")
+
+    ##; 显示摘要
+    print(f"\n{'='*60}")
+    pf_color("修复完成：", M_Color.GREEN)
+    print(f"  - 检查软链接数: {total_checked}")
+    print(f"  - 有效软链接: {total_valid}")
+    print(f"  - 修复软链接: {total_fixed}")
+    print(f"  - Git 仓库: {is_git}")
+    print(f"  - 记录已更新")
+
+
 def main():
     """主函数"""
     ##; 向后兼容：检查第一个参数是否是子命令或路径
@@ -1330,7 +1544,7 @@ def main():
     argv = sys.argv[1:]
     
     ##; 定义有效的子命令
-    valid_commands = {'init', 'list-linked-repos', 'fix-linked-repos'}
+    valid_commands = {'init', 'list-linked-repos', 'fix-linked-repos', 'fix'}
     
     ##; 检查是否是旧版用法（第一个参数是路径而不是子命令）
     is_legacy = False
@@ -1421,10 +1635,39 @@ def main():
     )
 
     ##; 子命令: fix-linked-repos
-    parser_fix = subparsers.add_parser(
+    parser_fix_repos = subparsers.add_parser(
         'fix-linked-repos',
         help='修复已链接项目的软链接',
         description='检查所有已链接项目的软链接，删除失效链接并重新创建'
+    )
+    parser_fix_repos.add_argument(
+        '--record-file',
+        default=None,
+        help='记录文件路径（可选，默认为 ~/.claude/zco-linked-projects.json）'
+    )
+    parser_fix_repos.add_argument(
+        '--remove-not-found',
+        action='store_true',
+        default=False,
+        help='删除不存在的项目记录'
+    )
+
+    ##; 子命令: fix - 修复单个项目的软链接
+    parser_fix = subparsers.add_parser(
+        'fix',
+        help='修复指定项目的软链接',
+        description='修复指定项目的软链接并更新记录'
+    )
+    parser_fix.add_argument(
+        'project_path',
+        nargs='?',
+        default=None,
+        help='目标项目路径（可选，默认为当前目录）'
+    )
+    parser_fix.add_argument(
+        '--tpl',
+        default=None,
+        help='模板目录路径（可选，默认为 ClaudeSettings）'
     )
     parser_fix.add_argument(
         '--record-file',
@@ -1445,7 +1688,11 @@ def main():
         return
 
     elif args.command == 'fix-linked-repos':
-        cmd_fix_linked_repos(record_file=args.record_file)
+        cmd_fix_linked_repos(record_file=args.record_file, remove_not_found=args.remove_not_found)
+        return
+
+    elif args.command == 'fix':
+        cmd_fix(project_path=args.project_path, tpl_dir=args.tpl, record_file=args.record_file)
         return
 
     ##; 没有子命令: 仅生成全局配置
