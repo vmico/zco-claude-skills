@@ -10,8 +10,38 @@ Environment Variables:
 import json
 import os
 import sys
+import subprocess
 from datetime import datetime
 from pathlib import Path
+
+def get_git_root(project_dir: Path=None) -> Path:
+    """获取当前 Git 仓库根目录"""
+    try:
+        # 执行 git rev-parse --show-toplevel 命令
+        if project_dir:
+            result = subprocess.run(
+                ['git', '-C', str(project_dir), 'rev-parse', '--show-toplevel'],
+                capture_output=True, text=True, check=True
+            )
+        else:
+            result = subprocess.run(
+                ['git', 'rev-parse', '--show-toplevel'],
+                capture_output=True, text=True, check=True
+            )
+        return Path(result.stdout.strip())
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return Path.cwd()
+    
+def get_hist_dir(project_dir: Path=None) -> Path:
+    """获取历史记录目录"""
+    hist_dir_name = os.environ.get('YJ_CLAUDE_CHAT_SAVE_DIR', None)
+    git_root = get_git_root(project_dir)
+    if not hist_dir_name:
+        hist_dir = git_root / '_.claude_hist'
+    else:
+        hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
+    hist_dir.mkdir(exist_ok=True)
+    return hist_dir
 
 
 def extract_text_from_message(msg: dict) -> str:
@@ -60,12 +90,7 @@ def save_simple_conversation(transcript_path: str, project_dir: str):
         # 生成文件名
         timestamp = datetime.now().strftime('%y%m%d_%H%M%S')
         filename = f"claude_log_{timestamp}_simple.md"
-
-        # 使用环境变量指定的目录，默认 _.claude_hist
-        hist_dir_name = os.environ.get('YJ_CLAUDE_CHAT_SAVE_DIR', '_.claude_hist')
-        hist_dir = Path(project_dir) / hist_dir_name
-        hist_dir.mkdir(exist_ok=True)
-
+        hist_dir = get_hist_dir(project_dir)
         output_file = hist_dir / filename
 
         # 生成简单的 Markdown
