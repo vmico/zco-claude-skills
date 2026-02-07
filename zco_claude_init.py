@@ -29,7 +29,7 @@ import difflib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.0.6.260205"
+VERSION = "v0.0.8.260205"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 #ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
