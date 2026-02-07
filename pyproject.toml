@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zco-claude"
+version = "0.1.0"
+description = "Claude Code 配置管理工具 - 快速初始化项目的 .claude 配置目录"
+readme = "readme.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "ZCO Team", email = "zco@example.com"}
+]
+keywords = ["claude", "claude-code", "ai", "configuration", "template"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Tools",
+    "Topic :: Utilities",
+]
+
+[project.scripts]
+zco-claude = "zco_claude_init:main"
+zco-claude-init = "zco_claude_init:main"
+
+[project.urls]
+Homepage = "https://github.com/zco-team/zco-claude"
+Repository = "https://github.com/zco-team/zco-claude.git"
+Issues = "https://github.com/zco-team/zco-claude/issues"
+
+[tool.setuptools]
+py-modules = ["zco_claude_init"]
+
+[tool.setuptools.package-data]
+"" = ["ClaudeSettings/**/*", "ClaudeSettings/**/.*"]
