@@ -4,32 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zco-claude"
-version = "0.1.0"
+version = "0.0.8"
 description = "Claude Code 配置管理工具 - 快速初始化项目的 .claude 配置目录"
 readme = "readme.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
-    {name = "ZCO Team", email = "zco@example.com"}
+    {name = "NicoNing", email = "vmico@outlook.com"}
 ]
-keywords = ["claude", "claude-code", "ai", "configuration", "template"]
+keywords = ["claude", "claude-code", "cli", "configuration", "settings template", "claude-skills"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Tools",
+    "Topic :: Software Development",
     "Topic :: Utilities",
 ]
 
 [project.scripts]
+#zco = "zco_claude_init:main"
 zco-claude = "zco_claude_init:main"
-zco-claude-init = "zco_claude_init:main"
+zco = "zco_claude_init:main"
+#zco-claude-init = "zco_claude_init:main"
 
 [project.urls]
 Homepage = "https://github.com/zco-team/zco-claude"
@@ -40,4 +41,4 @@ Issues = "https://github.com/zco-team/zco-claude/issues"
 py-modules = ["zco_claude_init"]
 
 [tool.setuptools.package-data]
-"" = ["ClaudeSettings/**/*", "ClaudeSettings/**/.*"]
+"*" = ["ClaudeSettings/**/*", "ClaudeSettings/**/.*"]

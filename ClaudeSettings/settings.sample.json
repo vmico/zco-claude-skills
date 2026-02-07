@@ -1,0 +1,71 @@
+{
+  "env": {
+    "ZCO_TPL_VERSION": "v2",
+    "YJ_CLAUDE_CHAT_SAVE_SPEC": "1",
+    "YJ_CLAUDE_CHAT_SAVE_PLAIN": "1",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "6000"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(python3:*)",
+      "Bash(echo:*)",
+      "Bash(go build:*)",
+      "Bash(ls:*)",
+      "Bash(tree:*)",
+      "Bash(git add:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(cat:*)",
+      "Bash(zsh:*)",
+      "Bash(test:*)",
+      "Skill(zco-plan)",
+      "Bash(git commit:*)",
+      "Bash(./.claude/commands/show_env:*)",
+      "Skill(zco-plan-new)"
+    ],
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(**/Library/Application Support/Google/Chrome/**)",
+      "Read(./.DS_Store)",
+      "Read(**/.DS_Store)",
+      "Read(**/__pycache__)",
+      "Read(**/__pycache__/**)",
+      "Read(*._.*)",
+      "Read(*.bak.*)",
+      "Read(*.tmp.*)",
+      "Read(_.*/**)",
+      "Read(*._/**)"
+    ],
+    "ask": [
+      "Read(**/.git/**)",
+      "Read(**/app.local.conf)",
+      "Read(**/*.local.conf)",
+      "Read(**/config.local.yaml)",
+      "Read(**/.env*)",
+      "Write(**/*.conf)",
+      "Write(**/*.yaml)",
+      "Read(**/.zshrc)",
+      "Read(**/.bashrc)",
+      "Read(**/.bash_profile)",
+      "Read(**/*.secret.*)",
+      "Write(**/docs/manual/**)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save_chat_plain.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save_chat_spec.py"
+          }
+        ]
+      }
+    ]
+  }
+}

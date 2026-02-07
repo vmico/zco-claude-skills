@@ -3,6 +3,17 @@ include LICENSE
 include zco_claude_init.py
 include pyproject.toml
 graft ClaudeSettings
-global-exclude __pycache__
+
+# 排除规则和 ClaudeSettings/DOT.claudeignore 保持一致
+# Python 缓存文件
+recursive-exclude * __pycache__
 global-exclude *.py[co]
+
+# 系统文件
 global-exclude .DS_Store
+
+# 临时/备份文件 (匹配 *._, _.*/, *._.*, *.bak.*)
+global-exclude *._
+global-exclude *._.*
+global-exclude *.bak.*
+recursive-exclude * ._*/

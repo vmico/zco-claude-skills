@@ -298,14 +298,14 @@ def make_links_for_subs(source_pdir, target_pdir, description, flag_file=False, 
         # pf_color(f"  跳过 {description}：目标目录与源目录相同", M_Color.YELLOW)
         return False
     for item in source_pdir.iterdir():
-        if item.name.startswith("_."):
+        if item.name.startswith("_.") or item.name.startswith(".") or item.name.startswith("__"):
             pass
-        elif item.is_dir() and flag_dir :
+        elif item.is_dir() and flag_dir:
             src_path = item.resolve()
             dst_path = abs_target / item.name
             make_symlink(src_path, dst_path, f"{description} - {item.name}")
             n_cnt += 1
-        elif item.is_file() and flag_file and not item.name.startswith("_."):
+        elif item.is_file() and flag_file:
             src_path = item.resolve()
             dst_path = abs_target / item.name
             make_symlink(src_path, dst_path, f"{description} - {item.name}")
@@ -604,7 +604,7 @@ def generate_project_settings(target_path: Path):
 
     Args:
         target_path: 目标项目路径
-        source_dir: 源项目目录（ClaudeSettings 目录）
+        source_dir: 源模板配置目录（ClaudeSettings 目录）
 
     Returns:
         bool: 是否成功生成配置
@@ -992,8 +992,34 @@ def is_valid_symlink(link_path: Path, expected_source: Path) -> bool:
     actual_source = link_path.resolve()
     return actual_source == expected_source.resolve()
 
+def cmd_init_global(tpl_dir=None):
+    """
+    子命令: init-global - 初始化全局 .claudeignore 文件
 
-def cmd_init(target_path=None, tpl_dir=None):
+    Args:
+        tpl_dir: 模板目录路径，默认为 ZCO_CLAUDE_TPL_DIR
+    """
+    ##; 确定模板目录
+    if tpl_dir is None:
+        source_abs = ZCO_CLAUDE_TPL_DIR.resolve()
+    else:
+        source_abs = Path(tpl_dir).resolve()
+        if not source_abs.exists():
+            pf_color(f"错误：模板目录不存在: {source_abs}", M_Color.RED)
+            sys.exit(1)
+    ##; 没有子命令: 仅生成全局配置
+    pf_color("\n📋 模式: 生成默认的全局配置", M_Color.CYAN)
+    pf_color(f"配置路径: $HOME/.claude/settings.json\n", M_Color.CYAN)
+    success = generate_global_settings(ZCO_CLAUDE_TPL_DIR)
+
+    if success:
+        pf_color("\n✅ 完成！配置已生成或更新。", M_Color.GREEN)
+    else:
+        pf_color("\n⚠️  配置生成失败或被取消。", M_Color.YELLOW)
+    
+    
+
+def cmd_init_project(target_path=None, tpl_dir=None):
     """
     子命令: init - 初始化项目的 .claude/ 配置
 
@@ -1571,28 +1597,28 @@ def main():
         description="Claude Code 配置管理工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-使用方式:
-
-1. 初始化当前项目:
+常用使用示例:
+1. 初始化全局配置:
    %(prog)s init
 
-2. 列出已链接项目:
+2. 初始化当前项目:
+   %(prog)s init .
+
+3. 列出已链接项目:
    %(prog)s list-linked-repos
 
-3. 修复已链接项目的软链接:
+4. 修复已链接项目的软链接:
    %(prog)s fix-linked-repos
 
-4. 仅生成全局默认配置（旧版兼容）:
-   %(prog)s
-
-5. 为指定项目配置（旧版兼容）:
-   %(prog)s /path/to/target/project
+5. 修复项目配置:
+   %(prog)s fix /path/to/target/project
 
 说明:
-  - init: 在当前目录初始化 .claude/ 配置
+  - init . : 在当前目录初始化 .claude/ 配置
   - list-linked-repos: 显示所有已初始化的项目列表
   - fix-linked-repos: 检查并修复所有软链接
-  - 旧版用法仍然兼容
+  - 更多帮助请参考: %(prog)s <command> --help
+    eg: %(prog)s init --help
         """
     )
     parser.add_argument(
@@ -1614,12 +1640,12 @@ def main():
         'project_path',
         nargs='?',
         default=None,
-        help='目标项目路径（可选，默认为当前目录）'
+        help='目标项目路径（可选）, 如果为空则初始化全局的 $HOME/.claude/settings.json, 支持相对路径'
     )
     parser_init.add_argument(
         '--tpl',
         default=None,
-        help='模板目录路径（可选，默认为 ClaudeSettings）'
+        help=f"模板目录路径（可选，默认为 ${ZCO_CLAUDE_TPL_DIR}）"
     )
 
     ##; 子命令: list-linked-repos
@@ -1680,7 +1706,10 @@ def main():
 
     ##; 处理子命令
     if args.command == 'init':
-        cmd_init(target_path=args.project_path, tpl_dir=args.tpl)
+        if args.project_path is None:
+            cmd_init_global(tpl_dir=args.tpl)
+        else:
+            cmd_init_project(target_path=args.project_path, tpl_dir=args.tpl)
         return
 
     elif args.command == 'list-linked-repos':
@@ -1694,19 +1723,9 @@ def main():
     elif args.command == 'fix':
         cmd_fix(project_path=args.project_path, tpl_dir=args.tpl, record_file=args.record_file)
         return
-
-    ##; 没有子命令: 仅生成全局配置
-    pf_color("\n📋 模式: 仅生成配置", M_Color.CYAN)
-    print(f"配置路径: $HOME/.claude/settings.json\n")
-
-    ##; 生成配置
-    print("生成配置...\n")
-    success = generate_global_settings(ZCO_CLAUDE_TPL_DIR)
-
-    if success:
-        pf_color("\n✅ 完成！配置已生成或更新。", M_Color.GREEN)
     else:
-        pf_color("\n⚠️  配置生成失败或被取消。", M_Color.YELLOW)
+        ## print help
+        parser.print_help()
     
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ RED := \033[31m
 RESET := \033[0m
 
 # Default target
-.PHONY: all install link uninstall check info help
+.PHONY: all install link uninstall check info help twine-pypi-local twine-pypi-upload
 
 all: info
 
@@ -33,10 +33,12 @@ info:
 	@echo "Target:      $(DST_PATH)"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make install   - Copy script to $(DST_DIR)"
-	@echo "  make link      - Create symlink in $(DST_DIR)"
-	@echo "  make uninstall - Remove $(DST_PATH)"
-	@echo "  make help      - Show this help message"
+	@echo "  make install          - Copy script to $(DST_DIR)"
+	@echo "  make link             - Create symlink in $(DST_DIR)"
+	@echo "  make uninstall        - Remove $(DST_PATH)"
+	@echo "  make twine-pypi-local - Build and check package locally"
+	@echo "  make twine-pypi-upload - Upload to PyPI production server"
+	@echo "  make help             - Show this help message"
 
 help: info
 
@@ -99,6 +101,40 @@ link: check-source check-dir remove-existing
 	@echo "$(GREEN)Linking complete!$(RESET)"
 	@echo "Usage: $(SCRIPT_ALIAS) --help"
 
+# Clean build artifacts
+clean:
+	@echo "$(BLUE)[clean]$(RESET) Cleaning build artifacts..."
+	@rm -rf build dist *.egg-info
+	@echo "$(GREEN)[done]$(RESET) Clean complete"
+	@rm -rf __pycache_
+
+
+# Build package for PyPI
+##; pip install dist/zco_claude-0.1.0.tar.gz 
+build-pypi: clean
+	@echo "$(BLUE)[build]$(RESET) Building package..."
+	@python3 -m pip install build -q 2>/dev/null || true
+	@if python3 -c "import build" 2>/dev/null; then \
+		python3 -m build; \
+	else \
+		echo "$(YELLOW)[warn]$(RESET) 'build' module not available, using setup.py..."; \
+		python3 setup.py sdist bdist_wheel; \
+	fi
+	@echo "$(GREEN)[done]$(RESET) Build complete"
+	
+
+# Build and check package locally (without upload)
+twine-pypi-local: build-pypi
+	@echo "$(BLUE)[twine]$(RESET) Checking package with twine..."
+	@python3 -m twine check dist/*
+	@echo "$(GREEN)[done]$(RESET) Local check complete"
+
+# Upload to PyPI production server
+twine-pypi-upload: build-pypi
+	@echo "$(BLUE)[twine]$(RESET) Uploading to PyPI production server..."
+	@python3 -m twine upload dist/*
+	@echo "$(GREEN)[done]$(RESET) Upload to production server complete"
+
 # Uninstall the binary
 uninstall:
 	@if [ -L "$(DST_PATH)" ] || [ -f "$(DST_PATH)" ]; then \
@@ -107,4 +143,8 @@ uninstall:
 		echo "$(GREEN)[done]$(RESET) Uninstalled: $(DST_PATH)"; \
 	else \
 		echo "$(YELLOW)[warn]$(RESET) Not found: $(DST_PATH)"; \
+	fi
+	@if python3 -c "import zco_claude_init" 2>/dev/null; then \
+		python3 -m pip uninstall zco-claude -y; \
+		echo "$(GREEN)[done]$(RESET) Uninstalled: zco-claude"; \
 	fi
