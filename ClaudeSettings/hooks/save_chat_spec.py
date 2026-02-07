@@ -5,12 +5,13 @@ Claude Code 对话自动保存脚本（增强版）
 
 Environment Variables:
 - YJ_CLAUDE_CHAT_SAVE_SPEC: Must be "1" to enable this hook
-- YJ_CLAUDE_CHAT_SAVE_DIR: Output directory (default: _.claude_hist)
+- YJ_CLAUDE_CHAT_SAVE_DIR: Output directory (default: ${GIT_ROOT}/_.claude_hist)
 """
 import json
 import os
 import sys
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Set
@@ -39,6 +40,34 @@ def extract_keywords(text: str, max_keywords: int = 3) -> str:
 
     return '_'.join(keywords[:max_keywords])
 
+def get_git_root(project_dir: Path=None) -> Path:
+    """获取当前 Git 仓库根目录"""
+    try:
+        # 执行 git rev-parse --show-toplevel 命令
+        if project_dir:
+            result = subprocess.run(
+                ['git', '-C', str(project_dir), 'rev-parse', '--show-toplevel'],
+                capture_output=True, text=True, check=True
+            )
+        else:
+            result = subprocess.run(
+                ['git', 'rev-parse', '--show-toplevel'],
+                capture_output=True, text=True, check=True
+            )
+        return Path(result.stdout.strip())
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return Path.cwd()
+    
+def get_hist_dir(project_dir: Path=None) -> Path:
+    """获取历史记录目录"""
+    hist_dir_name = os.environ.get('YJ_CLAUDE_CHAT_SAVE_DIR', None)
+    git_root = get_git_root(project_dir)
+    if not hist_dir_name:
+        hist_dir = git_root / '_.claude_hist'
+    else:
+        hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
+    hist_dir.mkdir(exist_ok=True)
+    return hist_dir
 
 def format_message_content(msg_data: Any) -> str:
     """格式化消息内容（支持 Claude Code 格式）"""
@@ -307,7 +336,7 @@ def save_conversation(transcript_path: str, project_dir: str):
                     break
 
         # 提取关键词
-        keywords = extract_keywords(first_user_msg) if first_user_msg else "对话"
+        keywords = extract_keywords(first_user_msg) if first_user_msg else "spec"
 
         # 生成文件名: YYmmddHH_{关键词}
         timestamp = datetime.now().strftime('%y%m%d_%H%M%S')
@@ -315,9 +344,7 @@ def save_conversation(transcript_path: str, project_dir: str):
         filename = f"{base_filename}.md"
 
         # 使用环境变量指定的目录，默认 _.claude_hist
-        hist_dir_name = os.environ.get('YJ_CLAUDE_CHAT_SAVE_DIR', '_.claude_hist')
-        hist_dir = Path(project_dir) / hist_dir_name
-        hist_dir.mkdir(exist_ok=True)
+        hist_dir = get_hist_dir(project_dir)
 
         # 生成 Markdown 内容
         markdown_content = generate_markdown(messages, tool_calls, references)
