@@ -10,8 +10,8 @@ import (
 
 //;@NOTE: 这个文件展示了如何正确使用 //; 和 //;@注释
 
-//; User 表示系统用户
-//; 包含用户的基本信息和认证数据
+// ; User 表示系统用户
+// ; 包含用户的基本信息和认证数据
 type User struct {
 	ID       int64
 	Name     string
@@ -19,8 +19,8 @@ type User struct {
 	Password string //;@FIXME: 应该存储哈希值而不是明文密码
 }
 
-//; ValidateEmail 验证邮箱格式是否正确
-//; 返回 true 表示邮箱格式有效
+// ; ValidateEmail 验证邮箱格式是否正确
+// ; 返回 true 表示邮箱格式有效
 func ValidateEmail(email string) bool {
 	//; 检查邮箱是否包含 @ 符号
 	if !strings.Contains(email, "@") {
@@ -39,8 +39,8 @@ func ValidateEmail(email string) bool {
 	return true
 }
 
-//; CreateUser 创建新用户
-//; 验证用户数据并返回创建的用户对象
+// ; CreateUser 创建新用户
+// ; 验证用户数据并返回创建的用户对象
 func CreateUser(name, email, password string) (*User, error) {
 	//;@NOTE: 这个函数需要重构，太长了
 
@@ -75,9 +75,9 @@ func CreateUser(name, email, password string) (*User, error) {
 	return user, nil
 }
 
-//;@DEPRECATED: 使用 CreateUser 替代
-//;@此函数将在 v2.0 版本移除
-//; CreateUserLegacy 创建用户（旧版本）
+// ;@DEPRECATED: 使用 CreateUser 替代
+// ;@此函数将在 v2.0 版本移除
+// ; CreateUserLegacy 创建用户（旧版本）
 func CreateUserLegacy(name, email string) *User {
 	return &User{
 		Name:  name,
@@ -85,11 +85,11 @@ func CreateUserLegacy(name, email string) *User {
 	}
 }
 
-//; CalculateDiscount 根据用户等级和订单金额计算折扣
-//; 折扣规则：
-//; - VIP 用户：15% 折扣
-//; - 普通用户：10% 折扣
-//; - 订单金额 < 100 不享受折扣
+// ; CalculateDiscount 根据用户等级和订单金额计算折扣
+// ; 折扣规则：
+// ; - VIP 用户：15% 折扣
+// ; - 普通用户：10% 折扣
+// ; - 订单金额 < 100 不享受折扣
 func CalculateDiscount(userLevel string, amount float64) float64 {
 	//;@OPTIMIZE: 这个函数可能会被频繁调用，考虑缓存折扣率
 
@@ -116,7 +116,7 @@ func CalculateDiscount(userLevel string, amount float64) float64 {
 	return amount * rate
 }
 
-//; processPayment 处理支付（私有函数）
+// ; processPayment 处理支付（私有函数）
 func processPayment(amount float64) error {
 	//;@FIXME: 需要添加支付网关集成
 	//;@HACK: 临时返回 nil，假装支付成功
@@ -133,7 +133,7 @@ func processPayment(amount float64) error {
 	return nil
 }
 
-//; NotifyUser 发送通知给用户
+// ; NotifyUser 发送通知给用户
 func NotifyUser(userID int64, message string) error {
 	//;@NOTE: 这个函数暂时只支持邮件通知
 	//;@TODO: 添加短信通知支持
@@ -155,9 +155,9 @@ func NotifyUser(userID int64, message string) error {
 	return nil
 }
 
-//;@XXX: 这个函数存在严重的性能问题
-//;@需要紧急优化，否则会影响系统稳定性
-//; SlowOperation 执行耗时操作（示例）
+// ;@XXX: 这个函数存在严重的性能问题
+// ;@需要紧急优化，否则会影响系统稳定性
+// ; SlowOperation 执行耗时操作（示例）
 func SlowOperation(items []string) []string {
 	var result []string
 
@@ -173,7 +173,7 @@ func SlowOperation(items []string) []string {
 	return result
 }
 
-//; Example 演示如何正确使用注释
+// ; Example 演示如何正确使用注释
 func Example() {
 	//; 这是普通的代码注释
 	//; 用于解释代码的功能和逻辑
