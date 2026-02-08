@@ -6,9 +6,9 @@
 
 # Configuration
 SCRIPT_NAME := zco_claude_init.py
-SCRIPT_ALIAS := zco-claude
+SCRIPT_COMM := zco-claude
 DST_DIR := $(HOME)/.local/bin
-DST_PATH := $(DST_DIR)/$(SCRIPT_ALIAS)
+DST_PATH := $(DST_DIR)/$(SCRIPT_COMM)
 SRC_PATH := $(realpath $(SCRIPT_NAME))
 VERSION := $(shell python3 $(SCRIPT_NAME) --version 2>/dev/null || echo "unknown")
 
@@ -89,7 +89,7 @@ install: check-source check-dir remove-existing
 	@$(MAKE) check-path
 	@echo ""
 	@echo "$(GREEN)Installation complete!$(RESET)"
-	@echo "Usage: $(SCRIPT_ALIAS) --help"
+	@echo "Usage: $(SCRIPT_COMM) --help"
 
 # Install by creating a symlink
 link: check-source check-dir remove-existing
@@ -99,7 +99,7 @@ link: check-source check-dir remove-existing
 	@$(MAKE) check-path
 	@echo ""
 	@echo "$(GREEN)Linking complete!$(RESET)"
-	@echo "Usage: $(SCRIPT_ALIAS) --help"
+	@echo "Usage: $(SCRIPT_COMM) --help"
 
 # Clean build artifacts
 clean:

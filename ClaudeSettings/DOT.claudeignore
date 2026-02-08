@@ -5,3 +5,6 @@
 **/*._.*
 **.bak.*
 **/__pycache__/*
+
+## ; *.mdown for human only ,not for Ai code
+**/*.mdown
