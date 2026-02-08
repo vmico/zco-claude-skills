@@ -1,0 +1,159 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "your-project-name"
+version = "0.1.0"
+description = "Your project description"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = ["python", "claude"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    ## 添加你的依赖
+]
+
+[project.optional-dependencies]
+dev = [
+    ## 代码质量工具
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    ## 测试工具
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    ## 类型存根
+    "types-requests",
+]
+
+[project.scripts]
+your-command = "your_package.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/your-project"
+Repository = "https://github.com/yourusername/your-project.git"
+Issues = "https://github.com/yourusername/your-project/issues"
+
+## Ruff 配置
+[tool.ruff]
+target-version = "py310"  ## Python 版本
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    ## pycodestyle errors
+    "F",    ## Pyflakes
+    "I",    ## isort
+    "N",    ## pep8-naming
+    "W",    ## pycodestyle warnings
+    "UP",   ## pyupgrade
+    "B",    ## flake8-bugbear
+    "C4",   ## flake8-comprehensions
+    "SIM",  ## flake8-simplify
+    "ARG",  ## flake8-unused-arguments
+    "COM",  ## flake8-commas
+    "C90",  ## mccabe (complexity)
+]
+ignore = [
+    "E501",  ## 行长度由 formatter 处理
+    "COM812", ## 与 formatter 冲突
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pep8-naming]
+extend-ignore-names = ["test_*"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+## MyPy 配置
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+show_column_numbers = true
+ignore_missing_imports = true
+
+## pytest 配置
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+## 覆盖率配置
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+skip_covered = false
+fail_under = 80
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+## setuptools 配置
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

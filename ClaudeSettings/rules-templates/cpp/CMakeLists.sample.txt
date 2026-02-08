@@ -1,0 +1,88 @@
+cmake_minimum_required(VERSION 3.14)
+project(ZcoCppProject LANGUAGES CXX)
+
+##; 设置 C++ 标准
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+##; --- 1. 编译选项与安全检查 ---
+
+##; 默认开启常用警告
+add_compile_options(-Wall -Wextra -Wpedantic -Wconversion)
+
+##; [关键] 内存安全检查开关 (仅在非 Windows 下推荐开启 ASan)
+option(ENABLE_ASAN "Enable AddressSanitizer for memory safety check" ON)
+if(ENABLE_ASAN AND NOT MSVC)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+    message(STATUS "✅ AddressSanitizer enabled")
+endif()
+
+##; --- 2. 自动化集成依赖 (GTest & GBenchmark) ---
+
+include(FetchContent)
+
+##; 集成 Google Test (含 GMock)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/heads/main.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+##; --- 3. 项目目标 (src) ---
+
+##; 建议将核心逻辑编译为库，方便单元测试链接
+add_library(project_core
+    src/auth/manager.cc
+    ##;@TODO: 添加更多源文件
+)
+target_include_directories(project_core PUBLIC src)
+
+##; 可执行文件
+add_executable(main src/main.cc)
+target_link_libraries(main PRIVATE project_core)
+
+##; --- 4. 测试目标 (tests) ---
+
+enable_testing()
+
+##; 定义测试可执行文件
+add_executable(unit_tests
+    tests/auth/manager_test.cc
+    ##; 增加更多测试文件...
+)
+
+##; 链接 GTest 和项目核心库
+##; GTest::gmock_main 会自动提供 main() 入口，省去手动写测试 main 的麻烦
+target_link_libraries(unit_tests
+    PRIVATE
+        GTest::gtest
+        GTest::gmock
+        GTest::gmock_main
+        project_core
+)
+
+##; 注册测试任务到 ctest
+include(GoogleTest)
+gtest_discover_tests(unit_tests)
+
+##; --- 5. 覆盖率支持 (可选) ---
+
+option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
+if(ENABLE_COVERAGE)
+    add_compile_options(--coverage)
+    add_link_options(--coverage)
+    message(STATUS "📈 Coverage reporting enabled")
+endif()
+
+
+
+########################################################
+#####; usage sample 
+##:> mkdir build && cd build
+##:> cmake .. -DENABLE_ASAN=ON -DENABLE_COVERAGE=ON
+##:> make
+##:> ctest --output-on-failure  # 运行所有测试并显示失败详情
+########################################################

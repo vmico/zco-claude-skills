@@ -9,7 +9,7 @@ Usage:
     zco-clean --dry-run            # Show what would be deleted
 
 Environment Variables:
-    YJ_CLAUDE_CHAT_SAVE_DIR: Default directory to clean (default: _.zco_hist)
+    ZCO_CLAUDE_CHAT_SAVE_DIR: Default directory to clean (default: _.zco_hist)
 """
 import os
 import sys
@@ -90,7 +90,7 @@ Examples:
   zco-clean --dry-run           Preview what would be deleted
 
 Environment Variable:
-  YJ_CLAUDE_CHAT_SAVE_DIR      Default directory (if --dir not specified)
+  ZCO_CLAUDE_CHAT_SAVE_DIR      Default directory (if --dir not specified)
         """
     )
 
@@ -105,7 +105,7 @@ Environment Variable:
         '--dir',
         type=str,
         default=None,
-        help='Directory to clean (default: YJ_CLAUDE_CHAT_SAVE_DIR or _.zco_hist)'
+        help='Directory to clean (default: ZCO_CLAUDE_CHAT_SAVE_DIR or _.zco_hist)'
     )
 
     parser.add_argument(
@@ -125,7 +125,7 @@ Environment Variable:
     if args.dir:
         target_dir = args.dir
     else:
-        target_dir = os.environ.get('YJ_CLAUDE_CHAT_SAVE_DIR', '_.zco_hist')
+        target_dir = os.environ.get('ZCO_CLAUDE_CHAT_SAVE_DIR', '_.zco_hist')
 
     print("=" * 60)
     print("🧹 Claude Chat Log Cleanup")

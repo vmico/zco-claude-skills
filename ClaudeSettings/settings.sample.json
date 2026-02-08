@@ -1,8 +1,8 @@
 {
   "env": {
     "ZCO_TPL_VERSION": "v2",
-    "YJ_CLAUDE_CHAT_SAVE_SPEC": "1",
-    "YJ_CLAUDE_CHAT_SAVE_PLAIN": "1",
+    "ZCO_CLAUDE_CHAT_SAVE_SPEC": "1",
+    "ZCO_CLAUDE_CHAT_SAVE_PLAIN": "1",
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "6000"
   },
   "permissions": {
