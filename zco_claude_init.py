@@ -29,7 +29,7 @@ import difflib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.0.8.260205"
+VERSION = "v0.0.9.260205.dev"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 #ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -127,7 +127,7 @@ def make_default_config():
             "Read(docs/*)",
             "Read(readme.md)",
             "Write(CLAUDE.md)",
-            "Write(_.claude_hist/*)",
+            "Write(_.zco_hist/*)",
             "Write(/tmp/*)",
             # 注意：不要把上面已经在 ask 里的文件又放进 allow，否则可能直接通过
             "Bash(tree -L 2 -d:*)",

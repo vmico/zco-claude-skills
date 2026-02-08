@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Claude Code 对话自动保存脚本（增强版）
+AI Code 对话自动保存脚本（增强版）
 保存完整对话 + 工具调用 + 参考资源
 
 Environment Variables:
-- YJ_CLAUDE_CHAT_SAVE_SPEC: Must be "1" to enable this hook
-- YJ_CLAUDE_CHAT_SAVE_DIR: Output directory (default: ${GIT_ROOT}/_.claude_hist)
+- ZCO_CHAT_SAVE_SPEC: Must be "1" to enable this hook
+- ZCO_CHAT_SAVE_DIR: Output directory (default: ${GIT_ROOT}/_.zco_hist)
 """
 import json
 import os
@@ -60,18 +60,18 @@ def get_git_root(project_dir: Path=None) -> Path:
     
 def get_hist_dir(project_dir: Path=None) -> Path:
     """获取历史记录目录"""
-    hist_dir_name = os.environ.get('YJ_CLAUDE_CHAT_SAVE_DIR', None)
+    hist_dir_name = os.environ.get('ZCO_CHAT_SAVE_DIR', None)
     git_root = get_git_root(project_dir)
     if not hist_dir_name:
-        hist_dir = git_root / '_.claude_hist'
+        hist_dir = git_root / '_.zco_hist'
     else:
         hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
     hist_dir.mkdir(exist_ok=True)
     return hist_dir
 
 def format_message_content(msg_data: Any) -> str:
-    """格式化消息内容（支持 Claude Code 格式）"""
-    # Claude Code 格式：外层 message 对象包含 role 和 content
+    """格式化消息内容（支持 AI Code 格式）"""
+    # AI Code 格式：外层 message 对象包含 role 和 content
     if isinstance(msg_data, dict) and 'message' in msg_data:
         msg_data = msg_data.get('message', {})
 
@@ -97,11 +97,11 @@ def format_message_content(msg_data: Any) -> str:
 
 
 def extract_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """提取所有工具调用（支持 Claude Code 格式）"""
+    """提取所有工具调用（支持 AI Code 格式）"""
     tool_calls = []
 
     for msg in messages:
-        # Claude Code 格式：type 在外层
+        # AI Code 格式：type 在外层
         msg_type = msg.get('type', '')
         if msg_type != 'assistant':
             continue
@@ -124,11 +124,11 @@ def extract_tool_calls(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def extract_tool_results(messages: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """提取工具返回结果（支持 Claude Code 格式）"""
+    """提取工具返回结果（支持 AI Code 格式）"""
     tool_results = {}
 
     for msg in messages:
-        # Claude Code 格式：检查外层 type
+        # AI Code 格式：检查外层 type
         msg_type = msg.get('type', '')
         if msg_type != 'user':
             continue
@@ -212,7 +212,7 @@ def extract_references(tool_calls: List[Dict], tool_results: Dict) -> Set[str]:
 
 
 def parse_transcript(transcript_path: str) -> List[Dict[str, Any]]:
-    """解析 Claude Code 的会话文件（JSONL 格式）"""
+    """解析 AI Code 的会话文件（JSONL 格式）"""
     messages = []
 
     try:
@@ -234,14 +234,16 @@ def parse_transcript(transcript_path: str) -> List[Dict[str, Any]]:
 
 def generate_markdown(messages: List[Dict[str, Any]],
                      tool_calls: List[Dict],
-                     references: Set[str]) -> str:
+                     references: Set[str],
+                     session_id: str) -> str:
     """将消息列表转换为 Markdown 格式（增强版）"""
     if not messages:
         return "# 对话记录\n\n无对话内容。\n"
 
     lines = []
-    lines.append("# Claude Code 对话记录\n")
+    lines.append("# AI Code 对话记录\n")
     lines.append(f"**时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    lines.append(f"**会话 ID**: {session_id}\n")
 
     # 添加参考资源部分
     if references:
@@ -272,7 +274,7 @@ def generate_markdown(messages: List[Dict[str, Any]],
             lines.append(f"\n## 👤 用户提问 #{idx}\n")
             lines.append(f"{text}\n")
         elif msg_type == 'assistant':
-            lines.append(f"\n## 🤖 Claude 回答 #{idx}\n")
+            lines.append(f"\n## 🤖 AiCode 回答 #{idx}\n")
             lines.append(f"{text}\n")
 
     lines.append("\n---\n")
@@ -313,7 +315,7 @@ def save_resources(references: Set[str], output_dir: Path, base_filename: str):
         print(f"Error saving resources: {e}", file=sys.stderr)
 
 
-def save_conversation(transcript_path: str, project_dir: str):
+def save_conversation(transcript_path: str, project_dir: str, session_id: str):
     """保存对话到 Markdown 文件（增强版）"""
     try:
         # 解析会话文件
@@ -340,14 +342,14 @@ def save_conversation(transcript_path: str, project_dir: str):
 
         # 生成文件名: YYmmddHH_{关键词}
         timestamp = datetime.now().strftime('%y%m%d_%H%M%S')
-        base_filename = f"claude_log_{timestamp}_{keywords}"
+        base_filename = f"AiCode_log_{timestamp}_{keywords}"
         filename = f"{base_filename}.md"
 
-        # 使用环境变量指定的目录，默认 _.claude_hist
+        # 使用环境变量指定的目录，默认 _.zco_hist
         hist_dir = get_hist_dir(project_dir)
 
         # 生成 Markdown 内容
-        markdown_content = generate_markdown(messages, tool_calls, references)
+        markdown_content = generate_markdown(messages, tool_calls, references, session_id)
 
         # 保存主文件
         output_file = hist_dir / filename
@@ -369,7 +371,7 @@ def main():
     """主函数"""
     try:
         # Check if this hook is enabled via environment variable
-        if os.environ.get('YJ_CLAUDE_CHAT_SAVE_SPEC') != '1':
+        if os.environ.get('ZCO_CHAT_SAVE_SPEC') != '1':
             # Silently exit if not enabled
             sys.exit(0)
 
@@ -379,9 +381,10 @@ def main():
         if hook_event == 'Stop':
             transcript_path = input_data.get('transcript_path', '')
             cwd = input_data.get('cwd', '')
+            session_id = input_data.get('session_id', 'unknown')
 
             if transcript_path and cwd:
-                save_conversation(transcript_path, cwd)
+                save_conversation(transcript_path, cwd, session_id)
             else:
                 print(f"Missing required data: transcript_path={transcript_path}, cwd={cwd}", file=sys.stderr)
 

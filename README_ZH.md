@@ -142,17 +142,18 @@ zco-claude-init/
 ### 创建计划
 
 ```bash
-# 使用技能创建
-zco-plan-new 实现用户登录功能
+##; 在 claude code 中使用技能
+/zco-plan-new {你的需求}
 
-# 或手动复制模板
+##; 或手动复制模板
 cp docs/plans/plan.template.md docs/plans/plan.002.$(date +%y%m%d).md
 ```
 
 ### 执行计划
 
 ```bash
-zco-plan 002
+##; 在 claude code 中使用技能
+/zco-plan 002
 ```
 
 计划文档使用 YAML front matter 定义元数据，包含状态追踪、优先级、验证标准等。

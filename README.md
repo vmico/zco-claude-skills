@@ -81,7 +81,7 @@ claude .
 /zco-plan 001
 
 # Create a new plan
-/zco-plan-new Implement user authentication
+/zco-plan-new {describe your requirement in any language}
 ```
 
 ---
@@ -141,8 +141,8 @@ zco-claude-init/
 ### Create a Plan
 
 ```bash
-# Create using skill
-zco-plan-new Implement user login feature
+# using skill in claude code
+/zco-plan-new {describe your requirement in any language}
 
 # Or manually copy template
 cp docs/plans/plan.template.md docs/plans/plan.002.$(date +%y%m%d).md
@@ -151,7 +151,8 @@ cp docs/plans/plan.template.md docs/plans/plan.002.$(date +%y%m%d).md
 ### Execute a Plan
 
 ```bash
-zco-plan 002
+# using skill in claude code
+/zco-plan 002
 ```
 
 Plan documents use YAML front matter to define metadata, including status tracking, priority, verification criteria, etc.

@@ -23,7 +23,7 @@ tags: [feature, skill, automation, documentation, productivity]
    - Git 提交记录（commit message, 文件变更统计）
    - 已完成的开发计划（docs/plans/ 中 status=completed 的计划）
    - 文档更新记录（CLAUDE.md, README.md 等关键文档的变更）
-   - Claude 对话历史（如果可访问 _.claude_hist/）
+   - Claude 对话历史（如果可访问 _.zco_hist/）
 
 2. **数据分析与分类**：智能分类工作内容
    - 按类型分类：新功能开发、Bug 修复、性能优化、文档更新、重构等

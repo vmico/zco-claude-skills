@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Claude Code 对话保存脚本（简单版）
-直接从 transcript 提取纯文本，保留 Claude 的原始输出格式
+AI Code 对话保存脚本（简单版）
+直接从 transcript 提取纯文本，保留 AiCode 的原始输出格式
 
 Environment Variables:
-- YJ_CLAUDE_CHAT_SAVE_PLAIN: Must be "1" to enable this hook
-- YJ_CLAUDE_CHAT_SAVE_DIR: Output directory (default: _.claude_hist)
+- ZCO_CHAT_SAVE_PLAIN: Must be "1" to enable this hook
+- ZCO_CHAT_SAVE_DIR: Output directory (default: _.zco_hist)
 """
 import json
 import os
@@ -34,10 +34,10 @@ def get_git_root(project_dir: Path=None) -> Path:
     
 def get_hist_dir(project_dir: Path=None) -> Path:
     """获取历史记录目录"""
-    hist_dir_name = os.environ.get('YJ_CLAUDE_CHAT_SAVE_DIR', None)
+    hist_dir_name = os.environ.get('ZCO_CHAT_SAVE_DIR', None)
     git_root = get_git_root(project_dir)
     if not hist_dir_name:
-        hist_dir = git_root / '_.claude_hist'
+        hist_dir = git_root / '_.zco_hist'
     else:
         hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
     hist_dir.mkdir(exist_ok=True)
@@ -69,7 +69,7 @@ def extract_text_from_message(msg: dict) -> str:
     return ''
 
 
-def save_simple_conversation(transcript_path: str, project_dir: str):
+def save_simple_conversation(transcript_path: str, project_dir: str, session_id: str):
     """保存对话为简单的纯文本格式"""
     try:
         # 解析 transcript
@@ -89,14 +89,15 @@ def save_simple_conversation(transcript_path: str, project_dir: str):
 
         # 生成文件名
         timestamp = datetime.now().strftime('%y%m%d_%H%M%S')
-        filename = f"claude_log_{timestamp}_simple.md"
+        filename = f"log_{timestamp}_plain.md"
         hist_dir = get_hist_dir(project_dir)
         output_file = hist_dir / filename
 
         # 生成简单的 Markdown
         with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(f"# Claude Code Conversation\n\n")
-            f.write(f"**Time**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write(f"# AI Code Conversation\n\n")
+            f.write(f"**Time**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"**Session ID**: {session_id}\n\n")
             f.write("---\n\n")
 
             for msg in messages:
@@ -109,7 +110,7 @@ def save_simple_conversation(transcript_path: str, project_dir: str):
                 if msg_type == 'user':
                     f.write(f"**User**:\n{text}\n\n")
                 elif msg_type == 'assistant':
-                    f.write(f"**Claude**:\n{text}\n\n")
+                    f.write(f"**AiCode**:\n{text}\n\n")
 
             f.write(f"\n---\n*Generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
 
@@ -124,7 +125,7 @@ def save_simple_conversation(transcript_path: str, project_dir: str):
 def main():
     try:
         # Check if this hook is enabled via environment variable
-        if os.environ.get('YJ_CLAUDE_CHAT_SAVE_PLAIN') != '1':
+        if os.environ.get('ZCO_CHAT_SAVE_PLAIN') != '1':
             # Silently exit if not enabled
             sys.exit(0)
 
@@ -134,9 +135,10 @@ def main():
         if hook_event == 'Stop':
             transcript_path = input_data.get('transcript_path', '')
             cwd = input_data.get('cwd', '')
+            session_id = input_data.get('session_id', 'unknown')
 
             if transcript_path and cwd:
-                save_simple_conversation(transcript_path, cwd)
+                save_simple_conversation(transcript_path, cwd, session_id)
 
         sys.exit(0)
     except Exception as e:

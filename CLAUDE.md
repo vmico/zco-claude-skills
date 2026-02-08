@@ -43,7 +43,7 @@ zco-claude-init/
 │   └── plan.{seq}.{date}.md          # Individual plan documents
 │
 ├── _.claude-settings/                # Backup/alternative settings
-├── _.claude_hist/                    # Conversation history archive
+├── _.zco_hist/                    # Conversation history archive
 │
 ├── zco_claude_init.py                # Project linking script (Python 3)
 ├── setup.sh                          # Setup automation (Shell)

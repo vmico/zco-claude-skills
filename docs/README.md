@@ -667,7 +667,7 @@ ls -la .claude/             # View symlinks
 ClaudeSettings/skills/      # Skill definitions
 docs/plans/                 # Development plans
 .claude/                    # Active configuration
-_.claude_hist/              # Conversation history
+_.zco_hist/              # Conversation history
 ```
 
 ### File Templates

@@ -127,19 +127,19 @@ ln -s ~/code/claude-hooks/save-conversation-simple.py \
    - 解析 JSONL 格式的对话记录
    - 提取用户提问和 Claude 回答
    - 生成 Markdown 格式
-   - 保存到 `_.claude_hist/`
+   - 保存到 `_.zco_hist/`
 
 ## 查看保存的对话
 
 ```bash
 # 查看最近的对话记录
-ls -lt _.claude_hist/ | head -10
+ls -lt _.zco_hist/ | head -10
 
 # 查看今天的对话
-ls _.claude_hist/$(date +%y%m%d)*.md
+ls _.zco_hist/$(date +%y%m%d)*.md
 
 # 搜索包含特定关键词的对话
-grep -l "API" _.claude_hist/*.md
+grep -l "API" _.zco_hist/*.md
 ```
 
 ## 手动保存对话
@@ -245,7 +245,7 @@ brew install python3
 
 ## 维护
 
-- **定期清理**: `_.claude_hist/` 目录可能会积累大量文件，建议定期归档
+- **定期清理**: `_.zco_hist/` 目录可能会积累大量文件，建议定期归档
 - **备份**: 重要对话建议备份到其他位置
 - **版本控制**: 可以选择将对话记录提交到 Git（但建议使用 `.gitignore` 排除）
 
