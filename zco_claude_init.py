@@ -29,7 +29,7 @@ import difflib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.0.9.260205.dev"
+VERSION = "v0.0.9.260208.dev"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 # ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -90,7 +90,7 @@ def make_default_config():
             "ZCO_TPL_VERSION": "v2",
             "ZCO_CLAUDE_CHAT_SAVE_SPEC": "0",
             "ZCO_CLAUDE_CHAT_SAVE_PLAIN": "0",
-            "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "3000"
+            "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "5000"
         },
         "alwaysThinkingEnabled": True,
         "permissions": {
@@ -220,7 +220,7 @@ def validate_paths(target_path, source_dir):
     return target_abs, source_abs
 
 
-def make_symlink(source: Path, target: Path, description: str):
+def make_symlink(source: Path, target: Path, description: str, prompt_if_add_link=False):
     """
     创建软链接
 
@@ -246,7 +246,9 @@ def make_symlink(source: Path, target: Path, description: str):
             return True
 
         print(f"  ! {description}：目标已存在: {target}")
-        response = input("    是否删除并重新创建？(y/N): ")
+        response = input("    是否删除并重新创建？(y/N/e/exit): ")
+        if response.lower() == 'e' or response.lower() == 'exit':
+            sys.exit(0)
         if response.lower() != 'y':
             pf_color(f"    跳过 {description}：用户取消", M_Color.YELLOW)
             return False
@@ -259,6 +261,15 @@ def make_symlink(source: Path, target: Path, description: str):
             shutil.rmtree(target)
         else:
             target.unlink()
+    elif prompt_if_add_link:
+        src_dest = source.relative_to(ZCO_CLAUDE_TPL_DIR)
+        cwd_link = target.relative_to(Path.cwd())
+        response = input(f"    是否软连接 {src_dest} --> {cwd_link} {description}？(y/N): ")
+        if response.lower() == 'e' or response.lower() == 'exit':
+            sys.exit(0)
+        if response.lower() != 'y':
+            pf_color(f"    跳过 {description}：用户取消", M_Color.YELLOW)
+            return False
 
     # ; 确保目标目录存在
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -274,7 +285,13 @@ def make_symlink(source: Path, target: Path, description: str):
         return False
 
 
-def make_links_for_subs(source_pdir, target_pdir, description, flag_file=False, flag_dir=True):
+def make_links_for_subs(
+        source_pdir,
+        target_pdir,
+        description,
+        flag_file=False,
+        flag_dir=True,
+        prompt_if_add_link=False):
     """
     创建软链接到子目录
 
@@ -309,12 +326,12 @@ def make_links_for_subs(source_pdir, target_pdir, description, flag_file=False, 
         elif item.is_dir() and flag_dir:
             src_path = item.resolve()
             dst_path = abs_target / item.name
-            make_symlink(src_path, dst_path, f"{description} - {item.name}")
+            make_symlink(src_path, dst_path, f"{description} - {item.name}", prompt_if_add_link)
             n_cnt += 1
         elif item.is_file() and flag_file:
             src_path = item.resolve()
             dst_path = abs_target / item.name
-            make_symlink(src_path, dst_path, f"{description} - {item.name}")
+            make_symlink(src_path, dst_path, f"{description} - {item.name}", prompt_if_add_link)
             n_cnt += 1
     return n_cnt
 
@@ -750,6 +767,8 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
     # ; 获取目标路径的绝对路径字符串
     target_str = str(Path(target_path).resolve())
     target_path_obj = Path(target_path)
+    if check_status is None:
+        check_status = "exist" if target_path_obj.exists() else "not-found"
 
     # ; 检查是否为 Git 仓库
     is_git = is_git_repo(target_path_obj) if target_path_obj.exists() else None
@@ -758,19 +777,19 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     record_items = data.get(record_key, [])
 
-    found = False
+    flag_found = False
     for i, item in enumerate(record_items):
         if isinstance(item, dict) and item.get("target_path") == target_str:
             # ; 更新现有记录
+            linked_time = item.get("linked_time", timestamp)
             record_items[i] = {
                 "tpl_src_dir": str(source_dir),
                 "target_path": target_str,
-                "linked_time": item.get("linked_time", timestamp),
+                "linked_time": linked_time,
                 "check_time": check_time if check_time else timestamp,
-                "check_status": check_status if check_status else ("exist" if target_path_obj.exists() else "not-found"),
-                "IsGitRepo": is_git
-            }
-            found = True
+                "check_status": check_status,
+                "IsGitRepo": is_git}
+            flag_found = True
             break
         elif isinstance(item, (list, tuple)) and len(item) >= 1 and item[0] == target_str:
             # ; 兼容旧格式，转换为新格式
@@ -779,13 +798,12 @@ def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD
                 "target_path": target_str,
                 "linked_time": timestamp,
                 "check_time": check_time if check_time else timestamp,
-                "check_status": check_status if check_status else ("exist" if target_path_obj.exists() else "not-found"),
-                "IsGitRepo": is_git
-            }
-            found = True
+                "check_status": check_status,
+                "IsGitRepo": is_git}
+            flag_found = True
             break
 
-    if not found:
+    if not flag_found:
         # ; 添加新记录
         record_items.append({
             "tpl_src_dir": str(source_dir),
@@ -1080,7 +1098,11 @@ def cmd_init_project(target_path=None, tpl_dir=None):
     # ; rules 目录
     source_rules = ZCO_CLAUDE_TPL_DIR / "rules"
     target_rules = target_claude_dir / "rules"
-    results.append(make_links_for_subs(source_rules, target_rules, "rules 目录"))
+    results.append(make_links_for_subs(source_rules, target_rules, "rules 目录", prompt_if_add_link=True))
+
+    source_rules = ZCO_CLAUDE_TPL_DIR / "rules-templates"
+    target_rules = target_claude_dir / "rules"
+    results.append(make_links_for_subs(source_rules, target_rules, "rules 目录", prompt_if_add_link=True))
 
     # ; hooks 目录
     source_hooks = ZCO_CLAUDE_TPL_DIR / "hooks"
@@ -1090,7 +1112,7 @@ def cmd_init_project(target_path=None, tpl_dir=None):
     # ; skills 目录
     source_skills = ZCO_CLAUDE_TPL_DIR / "skills"
     target_skills = target_claude_dir / "skills"
-    results.append(make_links_for_subs(source_skills, target_skills, "skills 目录"))
+    results.append(make_links_for_subs(source_skills, target_skills, "skills 目录", prompt_if_add_link=False))
 
     # ; commands 目录
     source_commands = ZCO_CLAUDE_TPL_DIR / "commands"
