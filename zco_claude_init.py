@@ -26,6 +26,7 @@ import argparse
 import json
 import shutil
 import difflib
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -262,8 +263,8 @@ def make_symlink(source: Path, target: Path, description: str, prompt_if_add_lin
         else:
             target.unlink()
     elif prompt_if_add_link:
-        src_dest = source.relative_to(ZCO_CLAUDE_TPL_DIR)
-        cwd_link = target.relative_to(Path.cwd())
+        src_dest = source.relative_to(ZCO_CLAUDE_TPL_DIR.resolve())
+        cwd_link = os.path.relpath(target, os.getcwd())
         response = input(f"    是否软连接 {src_dest} --> {cwd_link} {description}？(y/N): ")
         if response.lower() == 'e' or response.lower() == 'exit':
             sys.exit(0)
@@ -730,6 +731,25 @@ def is_git_repo(path: Path) -> bool:
     return git_dir.exists() and git_dir.is_dir()
 
 
+def get_git_root(project_dir: Path = None) -> Path:
+    """获取当前 Git 仓库根目录"""
+    try:
+        # 执行 git rev-parse --show-toplevel 命令
+        if project_dir:
+            result = subprocess.run(
+                ['git', '-C', str(project_dir), 'rev-parse', '--show-toplevel'],
+                capture_output=True, text=True, check=True
+            )
+        else:
+            result = subprocess.run(
+                ['git', 'rev-parse', '--show-toplevel'],
+                capture_output=True, text=True, check=True
+            )
+        return Path(result.stdout.strip())
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return Path.cwd()
+
+
 def record_linked_project(source_dir, target_path, record_file=ZCO_CLAUDE_RECORD_FILE,
                           record_key="linked-projects", check_time=None, check_status=None):
     """
@@ -976,6 +996,7 @@ def init_claudeignore(target_path):
 
     # ; 4. 写入文件
     output_file = target_abs / ".claudeignore"
+    output_fn = os.path.relpath(output_file.absolute(), os.getcwd())
 
     # ; 如果文件存在，备份
     if output_file.exists():
@@ -988,7 +1009,7 @@ def init_claudeignore(target_path):
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write('\n'.join(content_lines))
 
-        print(f"  ✓ 已生成 .claudeignore:")
+        print(f"  ✓ 已生成 .claudeignore: {output_fn}")
         print(f"    - 总规则数: {stats['total_unique']} 条（已去重）")
         print(f"    - 来自 .claudeignore: {stats['ary1_contributed']} 条")
         print(f"    - 来自 .gitignore_global: {stats['ary2_contributed']} 条")
@@ -1049,7 +1070,7 @@ def cmd_init_global(tpl_dir=None):
         pf_color("\n⚠️  配置生成失败或被取消。", M_Color.YELLOW)
 
 
-def cmd_init_project(target_path=None, tpl_dir=None):
+def cmd_init_project(target_path=None, tpl_dir=None, flag_git_root=False):
     """
     子命令: init - 初始化项目的 .claude/ 配置
 
@@ -1062,6 +1083,10 @@ def cmd_init_project(target_path=None, tpl_dir=None):
         target_path = Path(os.getcwd())
     else:
         target_path = Path(target_path)
+
+    if flag_git_root:
+        target_path = get_git_root(target_path)
+        print(f"Git 根目录: {target_path}")
 
     # ; 确定模板目录
     if tpl_dir is None:
@@ -1100,10 +1125,6 @@ def cmd_init_project(target_path=None, tpl_dir=None):
     target_rules = target_claude_dir / "rules"
     results.append(make_links_for_subs(source_rules, target_rules, "rules 目录", prompt_if_add_link=True))
 
-    source_rules = ZCO_CLAUDE_TPL_DIR / "rules-templates"
-    target_rules = target_claude_dir / "rules"
-    results.append(make_links_for_subs(source_rules, target_rules, "rules 目录", prompt_if_add_link=True))
-
     # ; hooks 目录
     source_hooks = ZCO_CLAUDE_TPL_DIR / "hooks"
     target_hooks = target_claude_dir / "hooks"
@@ -1138,7 +1159,7 @@ def cmd_init_project(target_path=None, tpl_dir=None):
     except Exception as e:
         print(f"\n✗ 生成 .claudeignore 失败: {e}")
     else:
-        pf_color(f"  - 已生成项目本地配置 .claude/.claudeignore ")
+        pf_color(f"  - 已生成项目本地配置  ")
 
     pf_color(
         f"""\n建议:
@@ -1396,86 +1417,6 @@ def cmd_fix_linked_repos(record_file=None, remove_not_found=False):
         print(f"  - 移除不存在项目: {cnt_prj_removed}")
 
 
-def run_init_legacy(target_path):
-    """
-    兼容旧版：初始化指定项目
-    """
-    pf_color("\n📋 模式: 配置指定项目", M_Color.CYAN)
-
-    # ; 验证路径
-    target_abs, source_abs = validate_paths(target_path, ZCO_CLAUDE_TPL_DIR)
-
-    print(f"\n源项目：{source_abs}")
-    print(f"目标项目：{target_abs}")
-    print(f"项目配置：{target_abs}/.claude/settings.local.json\n")
-
-    # ; 生成项目本地配置
-    print("生成项目本地配置...\n")
-    generate_project_settings(target_abs)
-
-    # ; 创建目标 .claude 目录
-    target_claude_dir = target_abs / ".claude"
-    target_claude_dir.mkdir(exist_ok=True)
-
-    # ; 创建软链接
-    print("\n开始链接配置到目标项目...\n")
-
-    results = []
-
-    # ; rules 目录
-    source_rules = ZCO_CLAUDE_TPL_DIR / "rules"
-    target_rules = target_claude_dir / "rules"
-    results.append(make_links_for_subs(source_rules, target_rules, "rules 目录"))
-
-    # ; hooks 目录
-    source_hooks = ZCO_CLAUDE_TPL_DIR / "hooks"
-    target_hooks = target_claude_dir / "hooks"
-    results.append(make_links_for_subs(source_hooks, target_hooks, "hooks 目录"))
-
-    # ; skills 目录
-    source_skills = ZCO_CLAUDE_TPL_DIR / "skills"
-    target_skills = target_claude_dir / "skills"
-    results.append(make_links_for_subs(source_skills, target_skills, "skills 目录"))
-
-    # ; commands 目录
-    source_commands = ZCO_CLAUDE_TPL_DIR / "commands"
-    target_commands = target_claude_dir / "commands"
-    n_cnt = make_links_for_subs(source_commands, target_commands, "commands 目录", flag_dir=True, flag_file=True)
-
-    # ; zco-scripts 目录
-    source_scripts = ZCO_CLAUDE_TPL_DIR / "zco-scripts"
-    target_scripts = target_claude_dir / "zco-scripts"
-    make_symlink(source_scripts, target_scripts, "zco-scripts 目录")
-
-    results.append(n_cnt)
-
-    pf_color(f"\n✅ 完成！", M_Color.GREEN)
-    pf_color(f"  - 已生成项目本地配置")
-    pf_color(f"  - 已生成项目本地配置 .claude/settings.local.json ")
-    pf_color(f"  - 成功完成对项目的 Claude 配置扩展")
-    pf_color(f"    配置扩展源: {target_abs}")
-
-    # ; 生成 .claudeignore
-    try:
-        init_claudeignore(target_abs)
-    except Exception as e:
-        print(f"\n✗ 生成 .claudeignore 失败: {e}")
-    else:
-        pf_color(f"  - 已生成项目本地配置 .claude/.claudeignore ")
-
-    pf_color(
-        f"""\n建议:
-        [1] 执行 echo \"**/*.local.*\" >> .gitignore 来忽略本地配置文件
-        [1] 请根据实际情况修改 .claude/settings.local.json 中的配置
-
-        欢迎一起构建和维护健康绿色的 ClaudeSettings 模板库！
-        """, M_Color.CYAN)
-
-    # ; 记录链接的项目
-    if any(results):
-        record_linked_project(source_abs, target_abs)
-
-
 def cmd_fix(project_path=None, tpl_dir=None, record_file=None):
     """
     子命令: fix - 修复指定项目的软链接并更新记录
@@ -1607,8 +1548,6 @@ def main():
     # ; 定义有效的子命令
     valid_commands = {'init', 'list-linked-repos', 'fix-linked-repos', 'fix'}
 
-    # ; 检查是否是旧版用法（第一个参数是路径而不是子命令）
-    is_legacy = False
     if argv and argv[0] not in valid_commands and not argv[0].startswith('-'):
         # ; 第一个参数既不是子命令也不是选项，可能是路径
         # ; 但需要排除 help 和 version
@@ -1620,12 +1559,6 @@ def main():
             elif '/' in argv[0] or argv[0].startswith('.'):
                 # ; 包含路径分隔符或以 . 开头，可能是路径
                 is_legacy = True
-
-    if is_legacy:
-        # ; 旧版用法：第一个参数是目标路径
-        target_path = argv[0]
-        run_init_legacy(target_path)
-        return
 
     # ; 创建主解析器
     parser = argparse.ArgumentParser(
@@ -1681,6 +1614,12 @@ def main():
         '--tpl',
         default=None,
         help=f"模板目录路径（可选，默认为 ${ZCO_CLAUDE_TPL_DIR}）"
+    )
+    parser_init.add_argument(
+        '--git-root',
+        action='store_true',
+        default=False,
+        help='如果设置，将在 Git 仓库根目录初始化配置'
     )
 
     # ; 子命令: list-linked-repos
@@ -1744,7 +1683,7 @@ def main():
         if args.project_path is None:
             cmd_init_global(tpl_dir=args.tpl)
         else:
-            cmd_init_project(target_path=args.project_path, tpl_dir=args.tpl)
+            cmd_init_project(target_path=args.project_path, tpl_dir=args.tpl, flag_git_root=args.git_root)
         return
 
     elif args.command == 'list-linked-repos':
