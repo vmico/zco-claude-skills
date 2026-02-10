@@ -448,10 +448,10 @@ def confirm_update() -> bool:
     print("\n" + "=" * 80)
     pf_color("是否要用新配置覆盖现有配置?", M_Color.YELLOW)
     NOW_TAG = datetime.now().strftime("%y%m%d_%H%M")
-    print("  [y] 是，更新配置, 原配置文件将备份为 settings.local.json.{NOW_TAG}")
+    print(f"  [y] 是，更新配置, 原配置文件将备份为 settings.local.json.{NOW_TAG}")
     print("  [n] 否，保留现有配置 (默认)")
-    print("  [m] 合并配置, 但优先使用模板配置, 原配置文件将备份为 settings.local.json")
-    print("  [b] 合并配置, 但优先使用原有配置, 原配置文件将备份为 settings.local.json")
+    print(f"  [m] 合并配置, 但优先使用模板配置, 原配置文件将备份为 settings.local.json.{NOW_TAG}")
+    print(f"  [b] 合并配置, 但优先使用原有配置, 原配置文件将备份为 settings.local.json.{NOW_TAG}")
     print("  [e] 取消操作, 退出当前进程")
     print("=" * 80)
 
@@ -495,7 +495,9 @@ def merge_json(low_obj: dict, high_obj: dict) -> dict:
                 merged_obj[key] = merge_json(merged_obj[key], value)
             elif isinstance(value, list) and isinstance(merged_obj[key], list):
                 # ; 合并列表，保留新列表中的所有元素
-                merged_obj[key].extend(value)
+                v_ary = sorted(set(merged_obj[key]))
+                v_ary.extend(v for v in value if v not in v_ary)
+                merged_obj[key] = v_ary
             else:
                 # ; 直接覆盖值
                 merged_obj[key] = value
