@@ -6,12 +6,14 @@ from setuptools.command.build_py import build_py as _build_py
 import os
 import shutil
 
+
 class CustomBuildPy(_build_py):
     """自定义 build_py 来包含 ClaudeSettings"""
+
     def run(self):
         # 先执行默认的 build_py
         super().run()
-        
+
         # 复制 ClaudeSettings 到 build 目录
         if os.path.exists('ClaudeSettings'):
             target = os.path.join(self.build_lib, 'ClaudeSettings')
@@ -20,9 +22,10 @@ class CustomBuildPy(_build_py):
                     shutil.rmtree(target)
                 shutil.copytree('ClaudeSettings', target)
 
+
 # Read the contents of README file
 this_directory = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(this_directory, 'readme.md'), encoding='utf-8') as f:
+with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(

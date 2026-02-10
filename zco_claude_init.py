@@ -132,6 +132,7 @@ def make_default_config():
                 "Write(docs/plans/*)",
                 "Read(docs/*)",
                 "Read(readme.md)",
+                "Read(README.md)",
                 "Write(CLAUDE.md)",
                 "Write(_.zco_hist/*)",
                 "Write(/tmp/*)",
