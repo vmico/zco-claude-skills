@@ -29,7 +29,7 @@ import difflib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.0.9.260208.dev"
+VERSION = "v0.1.0.260208"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 # ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -1252,10 +1252,12 @@ def cmd_fix_linked_repos(record_file=None, remove_not_found=False):
 
     source_abs = ZCO_CLAUDE_TPL_DIR.resolve()
     total_checked = 0
-    total_fixed = 0
-    total_valid = 0
+    cnt_link_fixed = 0
+    cnt_link_valid = 0
+    cnt_link_removed = 0
+    cnt_file_copied = 0
     total_projects = 0
-    removed_count = 0
+    cnt_prj_removed = 0
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # ; 需要检查的子目录
@@ -1276,7 +1278,7 @@ def cmd_fix_linked_repos(record_file=None, remove_not_found=False):
 
             if remove_not_found:
                 pf_color(f"⚠️  项目不存在，已从记录中移除: {target_path}", M_Color.YELLOW)
-                removed_count += 1
+                cnt_prj_removed += 1
                 continue  # ; 跳过添加到新列表
             else:
                 pf_color(f"⚠️  项目不存在: {target_path}", M_Color.YELLOW)
@@ -1326,6 +1328,7 @@ def cmd_fix_linked_repos(record_file=None, remove_not_found=False):
                 # ; 确定期望的源路径
                 source_item = source_subdir / item_path.name
                 if not item_path.is_symlink():
+                    cnt_file_copied += 1
                     if item_path.exists():
                         pf_color(f"  ¶ {subdir}/{item_path.name} → 不是软链接，且存在, 自行跳过", M_Color.GREEN)
                         continue
@@ -1337,7 +1340,7 @@ def cmd_fix_linked_repos(record_file=None, remove_not_found=False):
                         continue
                 elif is_valid_symlink(item_path, source_item):
                     project_valid += 1
-                    total_valid += 1
+                    cnt_link_valid += 1
                     print(f"  ✓ {subdir}/{item_path.name} →  模板链接有效")
                 else:
                     # ; 删除失效链接
@@ -1349,10 +1352,12 @@ def cmd_fix_linked_repos(record_file=None, remove_not_found=False):
                         if source_item.exists():
                             item_path.symlink_to(source_item)
                             project_fixed += 1
-                            total_fixed += 1
+                            cnt_link_fixed += 1
                             pf_color(f"  † {subdir}/{item_path.name} → 失效，已修复", M_Color.YELLOW)
                         else:
-                            pf_color(f"  ✗ {subdir}/{item_path.name} → 失效，源不存在", M_Color.RED)
+                            pf_color(f"  ✗ {subdir}/{item_path.name} → 失效，源不存在, 现移除", M_Color.RED)
+                            os.remove(item_path)
+                            cnt_link_removed += 1
                     except Exception as e:
                         pf_color(f"  ✗ {subdir}/{item_path.name} → 修复失败: {e}", M_Color.RED)
 
@@ -1381,18 +1386,14 @@ def cmd_fix_linked_repos(record_file=None, remove_not_found=False):
     # ; 显示总体摘要
     print(f"\n{'='*60}")
     pf_color("修复完成：", M_Color.GREEN)
-    print(f"  - 检查项目数: {total_projects}")
-    print(f"  - 检查软链接数: {total_checked}")
-    print(f"  - 有效软链接: {total_valid}")
-    print(f"  - 修复软链接: {total_fixed}")
+    print(f"  - 项目个数: {total_projects}")
+    print(f"  - 配置总项数: {total_checked}")
+    print(f"    - 自定义配置: {cnt_file_copied}")
+    print(f"    - 有效软链接: {cnt_link_valid}")
+    print(f"    - 修复软链接: {cnt_link_fixed}")
+    print(f"    - 移除不存在项目: {cnt_link_removed}")
     if remove_not_found:
-        print(f"  - 移除不存在项目: {removed_count}")
-    print(f"  - 记录项目数: {len(new_record_items)}")
-    pf_color("修复完成：", M_Color.GREEN)
-    print(f"  - 检查项目数: {total_projects}")
-    print(f"  - 检查软链接数: {total_checked}")
-    print(f"  - 有效软链接: {total_valid}")
-    print(f"  - 修复软链接: {total_fixed}")
+        print(f"  - 移除不存在项目: {cnt_prj_removed}")
 
 
 def run_init_legacy(target_path):
