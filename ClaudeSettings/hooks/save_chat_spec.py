@@ -17,6 +17,18 @@ from pathlib import Path
 from typing import List, Dict, Any, Set
 
 
+def get_hist_dir(project_dir: Path = None) -> Path:
+    """获取历史记录目录"""
+    hist_dir_name = os.environ.get('ZCO_CHAT_SAVE_DIR', None)
+    git_root = get_git_root(project_dir)
+    if not hist_dir_name:
+        hist_dir = git_root / '_.zco_hist'
+    else:
+        hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
+    hist_dir.mkdir(exist_ok=True)
+    return hist_dir
+
+
 def extract_keywords(text: str, max_keywords: int = 3) -> str:
     """从文本中提取关键词"""
     text = re.sub(r'[^\w\s\u4e00-\u9fff]', ' ', text)
@@ -36,11 +48,12 @@ def extract_keywords(text: str, max_keywords: int = 3) -> str:
                     break
 
     if not keywords:
-        return "对话记录"
+        return "spec"
 
     return '_'.join(keywords[:max_keywords])
 
-def get_git_root(project_dir: Path=None) -> Path:
+
+def get_git_root(project_dir: Path = None) -> Path:
     """获取当前 Git 仓库根目录"""
     try:
         # 执行 git rev-parse --show-toplevel 命令
@@ -57,17 +70,7 @@ def get_git_root(project_dir: Path=None) -> Path:
         return Path(result.stdout.strip())
     except (subprocess.CalledProcessError, FileNotFoundError):
         return Path.cwd()
-    
-def get_hist_dir(project_dir: Path=None) -> Path:
-    """获取历史记录目录"""
-    hist_dir_name = os.environ.get('ZCO_CHAT_SAVE_DIR', None)
-    git_root = get_git_root(project_dir)
-    if not hist_dir_name:
-        hist_dir = git_root / '_.zco_hist'
-    else:
-        hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
-    hist_dir.mkdir(exist_ok=True)
-    return hist_dir
+
 
 def format_message_content(msg_data: Any) -> str:
     """格式化消息内容（支持 AI Code 格式）"""
@@ -233,9 +236,9 @@ def parse_transcript(transcript_path: str) -> List[Dict[str, Any]]:
 
 
 def generate_markdown(messages: List[Dict[str, Any]],
-                     tool_calls: List[Dict],
-                     references: Set[str],
-                     session_id: str) -> str:
+                      tool_calls: List[Dict],
+                      references: Set[str],
+                      session_id: str) -> str:
     """将消息列表转换为 Markdown 格式（增强版）"""
     if not messages:
         return "# 对话记录\n\n无对话内容。\n"
@@ -338,7 +341,7 @@ def save_conversation(transcript_path: str, project_dir: str, session_id: str):
                     break
 
         # 提取关键词
-        keywords = extract_keywords(first_user_msg) if first_user_msg else "spec"
+        keywords = extract_keywords(first_user_msg)
 
         # 生成文件名: YYmmddHH_{关键词}
         timestamp = datetime.now().strftime('%y%m%d_%H%M%S')

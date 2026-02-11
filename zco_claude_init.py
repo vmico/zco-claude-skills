@@ -89,8 +89,8 @@ def make_default_config():
     default_settings = {
         "env": {
             "ZCO_TPL_VERSION": "v2",
-            "ZCO_CLAUDE_CHAT_SAVE_SPEC": "0",
-            "ZCO_CLAUDE_CHAT_SAVE_PLAIN": "0",
+            "ZCO_CHAT_SAVE_SPEC": "0",
+            "ZCO_CHAT_SAVE_PLAIN": "0",
             "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "5000"
         },
         "alwaysThinkingEnabled": True,

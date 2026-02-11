@@ -14,7 +14,20 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-def get_git_root(project_dir: Path=None) -> Path:
+
+def get_hist_dir(project_dir: Path = None) -> Path:
+    """获取历史记录目录"""
+    hist_dir_name = os.environ.get('ZCO_CHAT_SAVE_DIR', None)
+    git_root = get_git_root(project_dir)
+    if not hist_dir_name:
+        hist_dir = git_root / '_.zco_hist'
+    else:
+        hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
+    hist_dir.mkdir(exist_ok=True)
+    return hist_dir
+
+
+def get_git_root(project_dir: Path = None) -> Path:
     """获取当前 Git 仓库根目录"""
     try:
         # 执行 git rev-parse --show-toplevel 命令
@@ -31,17 +44,6 @@ def get_git_root(project_dir: Path=None) -> Path:
         return Path(result.stdout.strip())
     except (subprocess.CalledProcessError, FileNotFoundError):
         return Path.cwd()
-    
-def get_hist_dir(project_dir: Path=None) -> Path:
-    """获取历史记录目录"""
-    hist_dir_name = os.environ.get('ZCO_CHAT_SAVE_DIR', None)
-    git_root = get_git_root(project_dir)
-    if not hist_dir_name:
-        hist_dir = git_root / '_.zco_hist'
-    else:
-        hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
-    hist_dir.mkdir(exist_ok=True)
-    return hist_dir
 
 
 def extract_text_from_message(msg: dict) -> str:
@@ -80,7 +82,7 @@ def save_simple_conversation(transcript_path: str, project_dir: str, session_id:
                     msg = json.loads(line.strip())
                     if msg.get('type') in ['user', 'assistant']:
                         messages.append(msg)
-                except:
+                except BaseException:
                     continue
 
         if not messages:
@@ -135,7 +137,7 @@ def main():
         if hook_event == 'Stop':
             transcript_path = input_data.get('transcript_path', '')
             cwd = input_data.get('cwd', '')
-            session_id = input_data.get('session_id', 'unknown')
+            session_id = input_data.get('session_id', '{session_id}')
 
             if transcript_path and cwd:
                 save_simple_conversation(transcript_path, cwd, session_id)
