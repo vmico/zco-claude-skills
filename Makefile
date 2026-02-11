@@ -35,6 +35,7 @@ info:
 	@echo "Available targets:"
 	@echo "  make install          - Copy script to $(DST_DIR)"
 	@echo "  make link             - Create symlink in $(DST_DIR)"
+	@echo "  make link-dev         - Create symlink as $(SCRIPT_COMM)-dev"
 	@echo "  make uninstall        - Remove $(DST_PATH)"
 	@echo "  make twine-pypi-local - Build and check package locally"
 	@echo "  make twine-pypi-upload - Upload to PyPI production server"
@@ -101,6 +102,10 @@ link: check-source check-dir remove-existing
 	@echo "$(GREEN)Linking complete!$(RESET)"
 	@echo "Usage: $(SCRIPT_COMM) --help"
 
+# Install by creating a symlink (dev version) - reuses link target
+link-dev:
+	@$(MAKE) link SCRIPT_COMM=$(SCRIPT_COMM)-dev DST_PATH=$(DST_DIR)/$(SCRIPT_COMM)-dev
+
 # Clean build artifacts
 clean:
 	@echo "$(BLUE)[clean]$(RESET) Cleaning build artifacts..."
@@ -110,27 +115,34 @@ clean:
 
 
 # Build package for PyPI
-##; pip install dist/zco_claude-0.1.0.tar.gz 
-build-pypi: clean
-	@echo "$(BLUE)[build]$(RESET) Building package..."
+build-dist-v1: clean
+	@echo "$(BLUE)[build]$(RESET) Building package with python3 -m build ..."
 	@python3 -m pip install build -q 2>/dev/null || true
 	@if python3 -c "import build" 2>/dev/null; then \
-		python3 -m build; \
-	else \
-		echo "$(YELLOW)[warn]$(RESET) 'build' module not available, using setup.py..."; \
-		python3 setup.py sdist bdist_wheel; \
+		export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple && python3 -m build; \
 	fi
 	@echo "$(GREEN)[done]$(RESET) Build complete"
 	
+# Build package for PyPI
+build-dist-v0: clean
+	@echo "$(BLUE)[build]$(RESET) Building package with python3 setup.py sdist ..."
+	python3 setup.py sdist bdist_wheel; \
+	@echo "$(GREEN)[done]$(RESET) Build complete"
+
+# Build package for PyPI
+build-dist-v2: clean
+	@echo "$(BLUE)[build]$(RESET) Building package with python3 setup.py sdist ..."
+	export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple && uv build; \
+	@echo "$(GREEN)[done]$(RESET) Build complete"
 
 # Build and check package locally (without upload)
-twine-pypi-local: build-pypi
+twine-pypi-local: build-dist-v2
 	@echo "$(BLUE)[twine]$(RESET) Checking package with twine..."
 	@python3 -m twine check dist/*
 	@echo "$(GREEN)[done]$(RESET) Local check complete"
 
 # Upload to PyPI production server
-twine-pypi-upload: build-pypi
+twine-pypi-upload: build-dist-v2
 	@echo "$(BLUE)[twine]$(RESET) Uploading to PyPI production server..."
 	@python3 -m twine upload dist/*
 	@echo "$(GREEN)[done]$(RESET) Upload to production server complete"

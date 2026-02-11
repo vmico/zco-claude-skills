@@ -30,7 +30,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.1.0.260208"
+VERSION = "v0.1.1.260210"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 # ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -235,7 +235,6 @@ def make_symlink(source: Path, target: Path, description: str, prompt_if_add_lin
         bool: 是否成功创建链接
     """
     # ; 检查源是否存在
-    print("")
     if not source.exists():
         pf_color(f"  跳过 {description}：源不存在", M_Color.RED)
         return False
@@ -248,7 +247,7 @@ def make_symlink(source: Path, target: Path, description: str, prompt_if_add_lin
             return True
 
         print(f"  ! {description}：目标已存在: {target}")
-        response = input("    是否删除并重新创建？(y/N/e/exit): ")
+        response = input("    是否删除并重新创建？(y/N/e/exit/c/copy): ")
         if response.lower() == 'e' or response.lower() == 'exit':
             sys.exit(0)
         if response.lower() != 'y':
@@ -266,15 +265,26 @@ def make_symlink(source: Path, target: Path, description: str, prompt_if_add_lin
     elif prompt_if_add_link:
         src_dest = source.relative_to(ZCO_CLAUDE_TPL_DIR.resolve())
         cwd_link = os.path.relpath(target, os.getcwd())
-        response = input(f"    是否软连接 {src_dest} --> {cwd_link} {description}？(y/N): ")
+        response = input(f"    是否创建软连接 {src_dest} --> {cwd_link} {description}？(y/N/e/exit/c/copy): ")
         if response.lower() == 'e' or response.lower() == 'exit':
             sys.exit(0)
         if response.lower() != 'y':
             pf_color(f"    跳过 {description}：用户取消", M_Color.YELLOW)
             return False
+    else:
+        response = 'y'
 
     # ; 确保目标目录存在
     target.parent.mkdir(parents=True, exist_ok=True)
+    if response.lower() == 'c' or response.lower() == 'copy':
+        # ; 复制文件/目录
+        if source.is_dir():
+            import shutil
+            shutil.copytree(source, target)
+        else:
+            shutil.copy2(source, target)
+        pf_color(f"  ✓ {description}：已复制文件/目录", M_Color.GREEN)
+        return True
 
     # ; 创建软链接
     try:
@@ -495,9 +505,15 @@ def merge_json(low_obj: dict, high_obj: dict) -> dict:
                 # ; 递归合并嵌套字典
                 merged_obj[key] = merge_json(merged_obj[key], value)
             elif isinstance(value, list) and isinstance(merged_obj[key], list):
-                # ; 合并列表，保留新列表中的所有元素
-                v_ary = sorted(set(merged_obj[key]))
-                v_ary.extend(v for v in value if v not in v_ary)
+                ##; 合并列表，保留新列表中的所有元素
+                ##; 对于包含字典的列表，不能使用 set() 去重
+                v_ary = []
+                for v in merged_obj[key]:
+                    if v not in v_ary:
+                        v_ary.append(v)
+                for v in value:
+                    if v not in v_ary:
+                        v_ary.append(v)
                 merged_obj[key] = v_ary
             else:
                 # ; 直接覆盖值
@@ -1131,7 +1147,7 @@ def cmd_init_project(target_path=None, tpl_dir=None, flag_git_root=False):
     # ; hooks 目录
     source_hooks = ZCO_CLAUDE_TPL_DIR / "hooks"
     target_hooks = target_claude_dir / "hooks"
-    results.append(make_links_for_subs(source_hooks, target_hooks, "hooks 目录"))
+    results.append(make_links_for_subs(source_hooks, target_hooks, "hooks 目录", flag_dir=True, flag_file=True))
 
     # ; skills 目录
     source_skills = ZCO_CLAUDE_TPL_DIR / "skills"
