@@ -129,7 +129,26 @@ uninstall:
 	fi
 
 ####################################################
+## tag: Create git tag for current version
+add-tag:
+	@echo "Creating git tag v$(X_VERSION)..."
+	git tag v$(X_VERSION) -m "Release version $(X_VERSION)"
+	git push --tags origin v$(X_VERSION)
+	@echo "Push with: git push origin v$(X_VERSION)"
+
+del-tag:
+	@echo "Deleting git tag v$(X_VERSION)..."
+	git tag -d v$(X_VERSION)
+	git push origin :refs/tags/v$(X_VERSION)
+	@echo "Push with: git push origin :refs/tags/v$(X_VERSION)"
+####################################################
+
 # Build package for PyPI
+build-dist-v0: clean
+	@echo "$(BLUE)[build]$(RESET) Building package with python3 setup.py sdist ..."
+	python3 setup.py sdist bdist_wheel;
+	@echo "$(GREEN)[done]$(RESET) Build complete"
+
 build-dist-v1: clean
 	@echo "$(BLUE)[build]$(RESET) Building package with python3 -m build ..."
 	@python3 -m pip install build -q 2>/dev/null || true
@@ -139,15 +158,9 @@ build-dist-v1: clean
 	@echo "$(GREEN)[done]$(RESET) Build complete"
 	
 # Build package for PyPI
-build-dist-v0: clean
-	@echo "$(BLUE)[build]$(RESET) Building package with python3 setup.py sdist ..."
-	python3 setup.py sdist bdist_wheel; \
-	@echo "$(GREEN)[done]$(RESET) Build complete"
-
-# Build package for PyPI
 build-dist-v2: clean
 	@echo "$(BLUE)[build]$(RESET) Building package with python3 setup.py sdist ..."
-	export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple && uv build; \
+	export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple && uv build;
 	@echo "$(GREEN)[done]$(RESET) Build complete"
 
 # Build and check package locally (without upload)
