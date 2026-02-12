@@ -30,7 +30,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.1.2.260211"
+VERSION = "v0.1.3.260212"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 # ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -91,7 +91,8 @@ def make_default_config():
             "ZCO_TPL_VERSION": "v2",
             "ZCO_CHAT_SAVE_SPEC": "0",
             "ZCO_CHAT_SAVE_PLAIN": "0",
-            "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "5000"
+            "ZCO_AUTO_GIT_COMMIT_MODE": "0",
+            "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "5000",
         },
         "alwaysThinkingEnabled": True,
         "permissions": {
@@ -167,6 +168,16 @@ def make_default_config():
                         {
                             "type": "command",
                             "command": f"python3 {source_dir}/hooks/save_chat_spec.py"
+                        }
+                    ]
+                }
+            ],
+            "UserPromptSubmit": [
+                {
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": f"python3 {source_dir}/hooks/git_auto_commit.py"
                         }
                     ]
                 }
