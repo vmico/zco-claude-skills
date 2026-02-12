@@ -31,8 +31,8 @@ with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 setup(
     name="zco-claude",
     version="0.1.0",
-    author="ZCO Team",
-    author_email="zco@example.com",
+    author="NicoNing",
+    author_email="vmico@outlook.com",
     description="Claude Code 配置管理工具 - 快速初始化项目的 .claude 配置目录",
     long_description=long_description,
     long_description_content_type="text/markdown",
