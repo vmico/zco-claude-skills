@@ -3,15 +3,19 @@
 自动保存 Claude Code 对话记录到 Markdown 文件。
 
 ---
+## Hooks
+
+ "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "UserPromptSubmit", "SessionStart", "SessionEnd", "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PermissionRequest", "Setup", "TeammateIdle", "TaskCompleted".
 
 ## 📦 可用脚本
 
-| 脚本                     | 环境变量                | 特点                     | 推荐场景    |
-| ------------------------ | ----------------------- | ------------------------ | ----------- |
-| `save_chat_cli_style.py` | `ZCO_CHAT_SAVE_CLI=1`   | CLI 样式，折叠面板，图标 | ⭐ 日常使用 |
-| `save_chat_plain.py`     | `ZCO_CHAT_SAVE_PLAIN=1` | 纯文本，最简洁           | 快速查看    |
-| `save_chat_spec.py`      | `ZCO_CHAT_SAVE_SPEC=1`  | 完整信息，工具统计       | 深度分析    |
-| `debug_hook.py`          | -                       | 调试 hook，查看数据结构  | 开发调试    |
+| 脚本                     | 环境变量 (建议启用配置)      | 特点                     | 推荐场景    |
+| ------------------------ | ---------------------------- | ------------------------ | ----------- |
+| `save_chat_cli_style.py` | `ZCO_CHAT_SAVE_CLI=1`        | CLI 样式，折叠面板，图标 | ⭐ 日常使用 |
+| `save_chat_plain.py`     | `ZCO_CHAT_SAVE_PLAIN=1`      | 纯文本，最简洁           | 快速查看    |
+| `save_chat_spec.py`      | `ZCO_CHAT_SAVE_SPEC=1`       | 完整信息，工具统计       | 深度分析    |
+| `debug_hook.py`          | -                            | 调试 hook，查看数据结构  | 开发调试    |
+| `git_auto_commit.py`     | `ZCO_AUTO_GIT_COMMIT_MODE=2` | 自动提交 Git 变更        | 自动备份    |
 
 ---
 

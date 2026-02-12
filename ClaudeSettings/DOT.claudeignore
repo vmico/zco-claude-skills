@@ -6,5 +6,6 @@
 **.bak.*
 **/__pycache__/*
 
-## ; *.mdown for human only ,not for Ai code
+## ; *.mdown for human only, not for Ai code
 **/*.mdown
+!_.zco_hist/*.md

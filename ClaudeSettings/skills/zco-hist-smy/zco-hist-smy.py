@@ -30,15 +30,20 @@ def get_hist_dir(project_dir: Path = None) -> Path:
     return hist_dir
 
 
-def get_git_root() -> Path:
-    """##;获取 Git 仓库根目录"""
+def get_git_root(project_dir: Path = None) -> Path:
+    """获取当前 Git 仓库根目录"""
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        # 执行 git rev-parse --show-toplevel 命令
+        if project_dir:
+            result = subprocess.run(
+                ['git', '-C', str(project_dir), 'rev-parse', '--show-toplevel'],
+                capture_output=True, text=True, check=True
+            )
+        else:
+            result = subprocess.run(
+                ['git', 'rev-parse', '--show-toplevel'],
+                capture_output=True, text=True, check=True
+            )
         return Path(result.stdout.strip())
     except (subprocess.CalledProcessError, FileNotFoundError):
         return Path.cwd()

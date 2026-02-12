@@ -107,7 +107,6 @@ def make_default_config():
                 "Read(*._.*)",
                 "Read(*.bak.*)",
                 "Read(*.tmp.*)",
-                "Read(_.*/**)",
                 "Read(*._/**)",
             ],
             "ask": [
@@ -134,6 +133,7 @@ def make_default_config():
                 "Read(docs/*)",
                 "Read(readme.md)",
                 "Read(README.md)",
+                "Read(_.zco_hist/*)",
                 "Write(CLAUDE.md)",
                 "Write(_.zco_hist/*)",
                 "Write(/tmp/*)",

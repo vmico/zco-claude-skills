@@ -23,9 +23,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+##; support>= python3.9 list[str]
+##; support>= python3.8 list
 
-def run_git_command(cmd: list[str], cwd: str | None = None) -> tuple[int, str, str]:
-    """##; 执行 git 命令并返回结果"""
+
+def run_git_command(cmd: list, cwd: str):
+    """##; 执行 git 命令并返回结果 -> tuple[int, str, str]"""
     result = subprocess.run(
         cmd,
         cwd=cwd,
@@ -95,7 +98,7 @@ def is_git_repository(cwd: str) -> bool:
     return returncode == 0
 
 
-def auto_commit(cwd: str) -> list[str]:
+def auto_commit(cwd: str) -> list:
     """
     ##; 自动提交工作区变更
     ##; 返回提交的 commit message 列表
