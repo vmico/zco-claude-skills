@@ -1,0 +1,180 @@
+# C++ 静态分析配置
+# 基于 C++ Core Guidelines、Google Style Guide 和最佳实践
+#
+# 使用方法:
+#   1. 复制此文件到项目根目录: cp .clang-tidy.template .clang-tidy
+#   2. 运行检查: clang-tidy src/*.cpp -- -std=c++17
+#   3. 自动修复: clang-tidy src/*.cpp -fix -- -std=c++17
+
+---
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  google-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-special-member-functions,
+  -google-build-using-namespace,
+  -google-readability-braces-around-statements,
+  -google-readability-casting,
+  -google-readability-namespace-comments,
+  -google-readability-todo,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-use-trailing-return-type,
+  -readability-braces-around-statements,
+  -readability-convert-member-functions-to-static,
+  -readability-else-after-return,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-implicit-bool-conversion,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-simplify-boolean-expr,
+  -readability-uppercase-literal-suffix
+
+# -----------------------------------------------------------------------------
+# 检查选项
+# -----------------------------------------------------------------------------
+CheckOptions:
+  # 函数长度限制
+  - key: readability-function-size.LineThreshold
+    value: '50'
+  - key: readability-function-size.StatementThreshold
+    value: '40'
+
+  # 圈复杂度
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '15'
+
+  # 特殊成员函数（Rule of Five）
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: '1'
+  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
+    value: '0'
+
+  # 命名规范
+  - key: readability-identifier-naming.NamespaceCase
+    value: 'lower_case'
+  - key: readability-identifier-naming.ClassCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.StructCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.EnumCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.EnumConstantCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.EnumConstantPrefix
+    value: 'k'
+  - key: readability-identifier-naming.FunctionCase
+    value: 'camelBack'
+  - key: readability-identifier-naming.MethodCase
+    value: 'camelBack'
+  - key: readability-identifier-naming.VariableCase
+    value: 'lower_case'
+  - key: readability-identifier-naming.MemberCase
+    value: 'lower_case'
+  - key: readability-identifier-naming.MemberSuffix
+    value: '_'
+  - key: readability-identifier-naming.StaticVariableCase
+    value: 'lower_case'
+  - key: readability-identifier-naming.StaticConstantCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.StaticConstantPrefix
+    value: 'k'
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.GlobalConstantPrefix
+    value: 'k'
+  - key: readability-identifier-naming.ConstantCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.ConstantPrefix
+    value: 'k'
+  - key: readability-identifier-naming.ConstantMemberCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.ConstantMemberPrefix
+    value: 'k'
+  - key: readability-identifier-naming.TypeTemplateParameterCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: 'UPPER_CASE'
+  - key: readability-identifier-naming.AbstractClassCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.AbstractClassSuffix
+    value: 'Interface'
+
+  # 头文件保护
+  - key: llvm-header-guard.HeaderFileExtensions
+    value: 'h,hh,hpp,hxx'
+
+  # include 顺序
+  - key: llvm-include-order.SortPriority
+    value: '1'
+
+  # 现代 C++
+  - key: modernize-loop-convert.MaxCopySize
+    value: '16'
+  - key: modernize-loop-convert.MinConfidence
+    value: 'reasonable'
+  - key: modernize-loop-convert.NamingStyle
+    value: 'CamelCase'
+  - key: modernize-pass-by-value.IncludeStyle
+    value: 'llvm'
+  - key: modernize-replace-auto-ptr.IncludeStyle
+    value: 'llvm'
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+
+  # 性能
+  - key: performance-for-range-copy.AllowedTypes
+    value: ''
+  - key: performance-for-range-copy.WarnOnAllAutoCopies
+    value: '1'
+  - key: performance-inefficient-string-concatenation.StrictMode
+    value: '0'
+
+  # 可读性
+  - key: readability-inconsistent-declaration-parameter-name.Strict
+    value: '0'
+
+  # 避免 magic numbers
+  - key: cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;3;4;5;6;7;8;9;10;100;1000'
+  - key: readability-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;3;4;5;6;7;8;9;10;100;1000'
+
+# -----------------------------------------------------------------------------
+# 头文件过滤
+# -----------------------------------------------------------------------------
+HeaderFilterRegex: '.*'
+
+# -----------------------------------------------------------------------------
+# 格式化提供程序
+# -----------------------------------------------------------------------------
+FormatStyle: file
+
+# -----------------------------------------------------------------------------
+# 系统头文件
+# -----------------------------------------------------------------------------
+SystemHeaders: false
+
+# -----------------------------------------------------------------------------
+# 额外参数
+# -----------------------------------------------------------------------------
+ExtraArgs:
+  - -std=c++17
+  - -Wall
+  - -Wextra
+  - -Wpedantic

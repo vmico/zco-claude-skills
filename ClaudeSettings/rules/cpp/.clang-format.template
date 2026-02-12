@@ -1,0 +1,176 @@
+# C++ 代码格式化配置
+# 基于 Google C++ Style Guide 并做适当调整
+#
+# 使用方法:
+#   1. 复制此文件到项目根目录: cp .clang-format.template .clang-format
+#   2. 运行格式化: clang-format -i src/*.cpp include/*.h
+#   3. 检查格式: clang-format --dry-run --Werror src/*.cpp
+
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++17
+
+# -----------------------------------------------------------------------------
+# 缩进设置
+# -----------------------------------------------------------------------------
+IndentWidth: 4                    # 缩进宽度（4个空格）
+TabWidth: 4                       # Tab 宽度
+UseTab: Never                     # 不使用 Tab，使用空格
+ContinuationIndentWidth: 4        # 续行缩进宽度
+ConstructorInitializerIndentWidth: 4  # 构造函数初始化列表缩进
+
+# -----------------------------------------------------------------------------
+# 行长度
+# -----------------------------------------------------------------------------
+ColumnLimit: 100                  # 每行最大字符数（Google 默认 80，放宽到 100）
+
+# -----------------------------------------------------------------------------
+# 大括号风格
+# -----------------------------------------------------------------------------
+BreakBeforeBraces: Attach         # 大括号不换行
+BraceWrapping:
+  AfterClass: false               # class 后不换行
+  AfterControlStatement: false    # if/for/while 后不换行
+  AfterEnum: false                # enum 后不换行
+  AfterFunction: false            # 函数后不换行
+  AfterNamespace: false           # namespace 后不换行
+  AfterStruct: false              # struct 后不换行
+  AfterUnion: false               # union 后不换行
+  BeforeCatch: false              # catch 前不换行
+  BeforeElse: false               # else 前不换行
+
+# -----------------------------------------------------------------------------
+# 指针和引用
+# -----------------------------------------------------------------------------
+PointerAlignment: Left            # 指针符号靠左: int* ptr
+ReferenceAlignment: Left          # 引用符号靠左: int& ref
+SpaceAroundPointerQualifiers: Default
+
+# -----------------------------------------------------------------------------
+# Include 排序
+# -----------------------------------------------------------------------------
+SortIncludes: true                # 自动排序 includes
+IncludeBlocks: Regroup            # 重新分组 includes
+
+# Include 分类（按优先级排序）
+IncludeCategories:
+  # 系统头文件（<...>）
+  - Regex: '<[^/]+>'
+    Priority: 1
+    SortPriority: 1
+  # 第三方库
+  - Regex: '<[^/]+/[^/]+\.h>'
+    Priority: 2
+    SortPriority: 2
+  # 项目头文件（"..."）
+  - Regex: '"[^/]+\.h"'
+    Priority: 3
+    SortPriority: 3
+  # 项目内部头文件（带路径）
+  - Regex: '".*\.h"'
+    Priority: 4
+    SortPriority: 4
+
+# -----------------------------------------------------------------------------
+# 注释设置
+# -----------------------------------------------------------------------------
+ReflowComments: true              # 重新格式化注释
+SpacesBeforeTrailingComments: 2   # 行尾注释前空格数
+CommentPragmas: '^ IWYU pragma:'  # 保留特定格式的注释
+
+# -----------------------------------------------------------------------------
+# 函数和类
+# -----------------------------------------------------------------------------
+AllowShortFunctionsOnASingleLine: Inline  # 短函数可以单行
+AllowShortIfStatementsOnASingleLine: Never  # if 语句不换行
+AllowShortLoopsOnASingleLine: false   # 循环不换行
+AllowShortBlocksOnASingleLine: false  # 代码块不换行
+
+# 构造函数初始化列表
+BreakConstructorInitializers: BeforeColon  # 在冒号前换行
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+
+# -----------------------------------------------------------------------------
+# 模板
+# -----------------------------------------------------------------------------
+AlwaysBreakTemplateDeclarations: Yes  # 模板声明总是换行
+
+# -----------------------------------------------------------------------------
+# 命名空间
+# -----------------------------------------------------------------------------
+NamespaceIndentation: None        # namespace 内不缩进
+FixNamespaceComments: true        # 修复 namespace 结束注释
+ShortNamespaceLines: 10           # 短 namespace 不换行
+
+# -----------------------------------------------------------------------------
+# 空格设置
+# -----------------------------------------------------------------------------
+SpaceAfterCStyleCast: false       # C 风格转换后不加空格
+SpaceAfterLogicalNot: false       # ! 后不加空格
+SpaceAfterTemplateKeyword: true   # template 关键字后加空格
+SpaceBeforeAssignmentOperators: true  # 赋值运算符前加空格
+SpaceBeforeCpp11BracedList: true  # C++11 列表初始化前加空格
+SpaceBeforeCtorInitializerColon: true  # 构造函数初始化列表冒号前加空格
+SpaceBeforeInheritanceColon: true # 继承冒号前加空格
+SpaceBeforeParens: ControlStatements  # 控制语句括号前加空格
+SpaceBeforeRangeBasedForLoopColon: true  # 范围 for 循环冒号前加空格
+SpaceBeforeSquareBrackets: false  # 方括号前不加空格
+SpaceInEmptyBlock: false          # 空代码块内不加空格
+SpaceInEmptyParentheses: false    # 空括号内不加空格
+SpacesInAngles: false             # 尖括号内不加空格
+SpacesInCStyleCastParentheses: false  # C 风格转换括号内不加空格
+SpacesInConditionalStatement: false   # 条件语句括号内不加空格
+SpacesInContainerLiterals: false  # 容器字面量内不加空格
+SpacesInParentheses: false        # 括号内不加空格
+SpacesInSquareBrackets: false     # 方括号内不加空格
+
+# -----------------------------------------------------------------------------
+# 对齐
+# -----------------------------------------------------------------------------
+AlignAfterOpenBracket: Align      # 开括号后对齐
+AlignConsecutiveAssignments: false  # 不对齐连续赋值
+AlignConsecutiveDeclarations: false # 不对齐连续声明
+AlignEscapedNewlines: Left        # 转义换行左对齐
+AlignOperands: Align              # 操作数对齐
+AlignTrailingComments: true       # 行尾注释对齐
+
+# -----------------------------------------------------------------------------
+# 换行
+# -----------------------------------------------------------------------------
+AllowAllArgumentsOnNextLine: true
+AllowAllConstructorInitializersOnNextLine: true
+AllowAllParametersOfDeclarationOnASingleLine: true
+AlwaysBreakAfterReturnType: None  # 返回类型后不换行
+AlwaysBreakBeforeMultilineStrings: true  # 多行字符串前换行
+BinPackArguments: true            # 参数打包
+BinPackParameters: true           # 函数参数打包
+BreakBeforeBinaryOperators: None  # 二元运算符前不换行
+BreakBeforeTernaryOperators: true # 三元运算符前换行
+BreakStringLiterals: true         # 允许打断字符串字面量
+BreakInheritanceList: BeforeColon # 继承列表在冒号前换行
+CompactNamespaces: false          # 不压缩 namespace
+DeriveLineEnding: true            # 自动检测换行符
+
+# -----------------------------------------------------------------------------
+# 其他
+# -----------------------------------------------------------------------------
+Cpp11BracedListStyle: true        # C++11 列表初始化风格
+DerivePointerAlignment: false     # 不推导指针对齐
+DisableFormat: false              # 不禁用格式化
+ExperimentalAutoDetectBinPacking: false
+IndentCaseLabels: true            # case 标签缩进
+IndentPPDirectives: None          # 预处理指令不缩进
+IndentWrappedFunctionNames: false # 函数名不换行缩进
+KeepEmptyLinesAtTheStartOfBlocks: false  # 代码块开头不留空行
+MaxEmptyLinesToKeep: 1            # 最多保留 1 个空行
+PenaltyBreakAssignment: 2
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 1000
+PenaltyBreakTemplateDeclaration: 10
+PenaltyExcessCharacter: 1000000
+PenaltyReturnTypeOnItsOwnLine: 60
+PenaltyIndentedWhitespace: 0
+SortUsingDeclarations: true       # 排序 using 声明
+UseCRLF: false                    # 不使用 CRLF

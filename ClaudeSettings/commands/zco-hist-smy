@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""
+zco-hist-smy: 对话历史汇总工具
+
+汇总 _.zco_hist 目录下的 Claude Code 对话记录，生成结构化的摘要报告。
+
+Usage:
+    /zco-hist-smy              # 汇总当天（默认）
+    /zco-hist-smy -d 1         # 汇总当天（显式）
+    /zco-hist-smy -d 7         # 汇总近 7 天
+    /zco-hist-smy -d 0         # 汇总所有历史记录
+
+Environment Variables:
+    AICO_DOCS: 输出目录（默认: 当前目录）
+"""
+import os
+import sys
+from pathlib import Path
+
+
+def main():
+    ##;获取当前脚本所在目录
+    script_dir = Path(__file__).parent.resolve()
+
+    ##;获取项目根目录（.claude 的父目录）
+    project_dir = script_dir.parent.parent
+
+    ##;构建 skill 脚本路径
+    skill_script = (
+        project_dir
+        / "ClaudeSettings"
+        / "skills"
+        / "zco-hist-smy"
+        / "zco-hist-smy.py"
+    )
+
+    if not skill_script.exists():
+        print(f"##;@ERROR: 未找到脚本: {skill_script}")
+        sys.exit(1)
+
+    ##;获取传递给本命令的参数
+    args = sys.argv[1:]
+
+    ##;执行 skill 脚本
+    import subprocess
+
+    cmd = [sys.executable, str(skill_script)] + args
+    result = subprocess.run(cmd, cwd=project_dir)
+
+    sys.exit(result.returncode)
+
+
+if __name__ == "__main__":
+    main()
