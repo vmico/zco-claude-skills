@@ -1,10 +1,111 @@
 # Hooks 变更日志
 
+---
+
+## 2026-02-12 - CLI 样式版发布
+
+### 新增功能
+
+#### save_chat_cli_style.py（CLI 样式版）
+
+全新版本，模拟终端显示效果：
+
+1. **🎨 CLI 风格界面**
+   - 角色图标：❯ User / ⬢ Claude
+   - 工具图标：📄 Read / ✏️ Edit / ⚡ Bash / 🔧 Task
+   - 接近终端的视觉体验
+
+2. **📂 折叠面板**
+   - 工具调用使用 `<details>` 标签折叠
+   - 工具结果可展开/收起
+   - 适合 GitHub/GitLab 浏览
+
+3. **✂️ 智能截断**
+   - 过长的工具结果自动截断（默认 500 字符）
+   - 显示省略提示
+
+4. **🏷️ 模型信息支持**
+   - 如果 Hook 事件提供 model 字段，会记录在文档头部
+
+**输出示例**:
+```markdown
+### ❯ **User**
+
+请读取 README.md 文件
+
+### ⬢ **Claude**
+
+我来帮您读取文件。
+
+<details>
+<summary>📄 <b>Read</b> /path/to/README.md</summary>
+
+```json
+{
+  "file_path": "/path/to/README.md"
+}
+```
+</details>
+```
+
+---
+
+## 2026-02-12 - 环境变量控制
+
+### 改进
+
+所有 hooks 现在支持通过环境变量启用：
+
+| 环境变量 | 对应脚本 | 说明 |
+|----------|----------|------|
+| `ZCO_CHAT_SAVE_CLI=1` | save_chat_cli_style.py | CLI 样式版 |
+| `ZCO_CHAT_SAVE_PLAIN=1` | save_chat_plain.py | 简洁版 |
+| `ZCO_CHAT_SAVE_SPEC=1` | save_chat_spec.py | 增强版 |
+
+**可选配置**：
+- `ZCO_CHAT_SAVE_DIR` - 自定义输出目录（默认：`_.zco_hist`）
+
+**优点**：
+- 无需修改 `settings.json`
+- 可以快速切换不同保存方式
+- 适合多项目共享配置
+
+---
+
+## 2026-02-12 - 调试工具
+
+### 新增 debug_hook.py
+
+用于开发调试的辅助工具：
+
+1. **功能**
+   - 打印 Hook 事件接收到的所有数据
+   - 检查环境变量
+   - 保存到 `_.zco_hist/hook_debug_{event}.json`
+
+2. **用途**
+   - 验证 model 字段是否可用
+   - 查看 Hook 输入数据结构
+   - 排查问题
+
+**使用方法**：
+```bash
+# 添加到 settings.json
+{
+  "hooks": {
+    "Stop": [
+      "ClaudeSettings/hooks/debug_hook.py"
+    ]
+  }
+}
+```
+---
+
 ## 2026-01-06 - 增强版发布
 
 ### 新增功能
 
-#### save-conversation-enhanced.py（增强版）
+#### save_chat_spec.py（增强版）
 
 相比标准版，新增以下功能：
 
@@ -31,127 +132,22 @@
 
 ### 文件对比
 
-| 功能 | 标准版 | 增强版 |
-|------|--------|--------|
-| 保存对话内容 | ✅ | ✅ |
-| 提取关键词 | ✅ | ✅ |
-| 记录参考资源 | ❌ | ✅ |
-| 工具使用统计 | ❌ | ✅ |
-| 工具调用详情 | ❌ | ✅ |
-| 独立资源列表 | ❌ | ✅ |
-| 性能开销 | 低 | 中等 |
-
-### 输出示例
-
-#### 对话文件（26010614_API文档_生成.md）
-
-```markdown
-# Claude Code 对话记录
-
-**时间**: 2026-01-06 14:30:00
-
-## 📚 参考资源
-
-- 🤖 Agent: claude-code-guide
-- 🤖 Agent: Explore
-- 📄 /path/to/routers/router.go
-- 📄 /path/to/models/auth/jwt.go
-
-**使用工具**: 8 次
-  - Read: 5 次
-  - Task: 2 次
-  - Bash: 1 次
-
----
-
-## 👤 用户提问 #1
-
-请为我遍历项目的 API 接口...
-
-## 🤖 Claude 回答 #1
-
-好的！我来帮你遍历...
-
----
-
-## 📋 附录：工具调用详情
-
-### 工具 1: Task
-```json
-{
-  "subagent_type": "Explore",
-  "prompt": "探索项目 API 结构..."
-}
-```
-
----
-*自动生成于 2026-01-06 14:30:00*
-```
-
-#### 资源列表文件（26010614_API文档_生成_resources.txt）
-
-```
-# 参考资源
-# 生成时间: 2026-01-06 14:30:00
-# 对话文件: 26010614_API文档_生成.md
-
-🤖 Agent: Explore
-🤖 Agent: claude-code-guide
-📄 /home/lane/.../routers/router.go
-📄 /home/lane/.../models/auth/jwt.go
-```
-
-### 如何切换版本
-
-编辑 `.claude/settings.json`：
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            // 标准版：
-            // "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save-conversation.py"
-
-            // 增强版（当前）：
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/save-conversation-enhanced.py"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### 性能说明
-
-- **标准版**: 处理时间 < 100ms，适合频繁对话
-- **增强版**: 处理时间 100-300ms，适合需要详细记录的场景
+| 功能 | 简洁版 | 增强版 | CLI 样式版 |
+|------|--------|--------|------------|
+| 保存对话内容 | ✅ | ✅ | ✅ |
+| 提取关键词 | ❌ | ✅ | ❌ |
+| 记录参考资源 | ❌ | ✅ | ✅ |
+| 工具使用统计 | ❌ | ✅ | ✅ |
+| 工具调用详情 | ❌ | ✅ | ✅ |
+| 独立资源列表 | ❌ | ✅ | ❌ |
+| 折叠面板     | ❌ | ❌ | ✅ |
+| 角色/工具图标 | ❌ | ❌ | ✅ |
+| 性能开销     | 低 | 中等 | 中等 |
 
 ### 推荐使用场景
 
-#### 标准版适合：
-- 日常快速对话
-- 不需要追溯参考资源
-- 注重性能
-
-#### 增强版适合：
-- 技术研究和学习
-- 需要记录资料来源
-- 团队协作和知识分享
-- 生成可审计的对话记录
-
----
-
-## 历史版本
-
-### v1.0 - 2026-01-06
-- 初始版本：save-conversation.py
-- 功能：基础对话保存
-
-### v2.0 - 2026-01-06（当前）
-- 增强版：save-conversation-enhanced.py
-- 新增：参考资源记录、工具调用统计、详细调用记录
+| 版本 | 适合场景 |
+|------|----------|
+| **CLI 样式版** | 日常使用，最接近终端体验 |
+| 简洁版 | 快速查看，只需纯文本 |
+| 增强版 | 技术分析，需要详细记录 |

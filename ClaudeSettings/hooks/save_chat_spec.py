@@ -341,11 +341,11 @@ def save_conversation(transcript_path: str, project_dir: str, session_id: str):
                     break
 
         # 提取关键词
-        keywords = extract_keywords(first_user_msg)
+        # keywords = extract_keywords(first_user_msg)
 
         # 生成文件名: YYmmddHH_{关键词}
         timestamp = datetime.now().strftime('%y%m%d_%H%M%S')
-        base_filename = f"AiCode_log_{timestamp}_{keywords}"
+        base_filename = f"log_{timestamp}_spec"
         filename = f"{base_filename}.md"
 
         # 使用环境变量指定的目录，默认 _.zco_hist

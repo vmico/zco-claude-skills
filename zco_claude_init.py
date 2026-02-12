@@ -30,7 +30,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.1.1.260210"
+VERSION = "v0.1.2.260211"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 # ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -98,7 +98,7 @@ def make_default_config():
             "deny": [
                 "Read(~/.ssh/**)",  # ; 防止 AI 尝试读取你的私钥
                 "Read(~/.aws/**)",  # ; 云服务凭证
-                "Read(**/Library/Application Support/Google/Chrome/**)",
+                "Read(**/Library/'Application Support'/Google/Chrome/**)",
                 "Read(./.DS_Store)",  # ;
                 "Read(**/.DS_Store)",
                 "Read(**/__pycache__)",
