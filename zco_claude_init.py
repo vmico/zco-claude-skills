@@ -37,7 +37,7 @@ ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
 ZCO_CLAUDE_IGNORE_FILE = ZCO_CLAUDE_TPL_DIR / "DOT.claudeignore"
 ZCO_CLAUDE_RECORD_FILE = Path.home() / ".claude" / "zco-linked-projects.json"
-
+ZCO_CLAUDE_CONFIG_FILE = Path.home() / ".claude" / "settings.json"
 
 class M_Color:
     """
@@ -84,14 +84,14 @@ def debug(*args):
         print("DEBUG:", *args)
 
 
-def make_default_config():
+def make_default_config(tpl_dir: Path = ZCO_CLAUDE_TPL_DIR, with_hooks=False):
     # ; 读取示例配置
-    source_dir = os.path.abspath(ZCO_CLAUDE_TPL_DIR)
+    source_dir = os.path.abspath(tpl_dir)
     default_settings = {
         "env": {
-            "ZCO_TPL_VERSION": "v2",
-            "ZCO_CHAT_SAVE_SPEC": "0",
-            "ZCO_CHAT_SAVE_PLAIN": "0",
+            "ZCO_TPL_VERSION": "v3",
+            "ZCO_CHAT_SAVE_SPEC": "1",
+            "ZCO_CHAT_SAVE_PLAIN": "1",
             "ZCO_AUTO_GIT_COMMIT_MODE": "0",
             "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "5000",
         },
@@ -158,7 +158,8 @@ def make_default_config():
                 f"Bash({source_dir}/zco-scripts/*)"
             ]
         },
-        "hooks": {
+    }
+    hooks = {
             "Stop": [
                 {
                     "hooks": [
@@ -184,7 +185,8 @@ def make_default_config():
                 }
             ]
         }
-    }
+    if with_hooks:
+        default_settings["hooks"] = hooks
     return default_settings
 
 
@@ -559,7 +561,7 @@ def is_json_content_equal(content1: str, content2: str) -> bool:
         return content1.strip() == content2.strip()
 
 
-def upsert_template_settings(fp_dst_config: Path):
+def upsert_template_settings(fp_dst_config: Path, default_cfg: dict):
     """
     生成配置文件，如果已存在则先显示 DIFF 并让用户确认, 如果修改则必须备份原配置文件
 
@@ -570,8 +572,7 @@ def upsert_template_settings(fp_dst_config: Path):
         bool: 是否成功生成配置
     """
     # ; 生成新配置内容
-    default_settings = make_default_config()
-    new_content = json.dumps(default_settings, ensure_ascii=False, indent=2)
+    new_content = json.dumps(default_cfg, ensure_ascii=False, indent=2)
 
     # ; 检查现有配置并显示 DIFF
     if fp_dst_config.exists():
@@ -634,7 +635,7 @@ def upsert_template_settings(fp_dst_config: Path):
         return False
 
 
-def generate_global_settings(source_dir: Path):
+def generate_global_settings(tpl_dir=ZCO_CLAUDE_TPL_DIR):
     """
     生成配置文件，如果已存在则先显示 DIFF 并让用户确认
 
@@ -645,15 +646,16 @@ def generate_global_settings(source_dir: Path):
         bool: 是否成功生成配置
     """
 
-    home_dir = Path.home()
-    global_settings = home_dir / ".claude" / "settings.json"
-    upsert_template_settings(global_settings)
+    default_cfg = make_default_config(tpl_dir=tpl_dir, with_hooks=True)
+    upsert_template_settings(ZCO_CLAUDE_CONFIG_FILE, default_cfg)
     pf_color(f"\n  Tips: HOME/.claude/settings.json 优先级较低, 会被项目本地配置覆盖", M_Color.CYAN)
     pf_color(
         f"""\n
         HOME/.claude/settings.json (低) >
         PROJECT/.claude/settings.json (中) >
         PROJECT/.claude/settings.local.json (高)
+
+        注意: 如果 hooks 存在多个, 则会合并所有 hooks 配置, 会导致 hooks 重复执行
         """, M_Color.CYAN)
 
 
@@ -675,7 +677,9 @@ def generate_project_settings(target_path: Path):
 
     # ; 本地配置文件路径
     local_settings = target_path / ".claude" / "settings.local.json"
-    upsert_template_settings(local_settings)
+    default_cfg = make_default_config(with_hooks=False)
+    
+    upsert_template_settings(local_settings, default_cfg)
     pf_color(f"\n  Tips: PROJECT/.claude/settings.local.json 优先级最高, 不会影响其他项目配置", M_Color.CYAN)
 
 
@@ -1114,13 +1118,13 @@ def make_hist_dir(project_dir: Path = None, enable_symlink: bool = True) -> Path
         if not enable_symlink:
             hist_dir.mkdir(exist_ok=True)
         else:
-            hist_home.symlink_to(hist_dir)
+            hist_dir.symlink_to(hist_home)
     else:
         if enable_symlink:
             if hist_dir.resolve() != hist_home.resolve():
                 ## mv old symlink to old_hist
-                hist_dir.rename(hist_home.with_suffix('.bak'))
-                hist_home.symlink_to(hist_dir)
+                hist_dir.rename(hist_dir.with_suffix('.bak'))
+                hist_dir.symlink_to(hist_home)
     return hist_dir
 
 
@@ -1128,9 +1132,10 @@ def make_hist_home(project_dir: Path = None) -> Path:
     """获取历史记录目录"""
     git_root = get_git_root(project_dir)
     git_root_hash = hashlib.md5(str(git_root).encode()).hexdigest()[:8]
-    git_name = git_root.name + '_' + git_root_hash
+    git_name = git_root.name + '.' + git_root_hash
     base_dir = Path.home() / ".claude" / 'zco_hist' / git_name
-    base_dir.mkdir(exist_ok=True)
+    # base_dir.mkdir(exist_ok=True)
+    os.makedirs(str(base_dir), exist_ok=True)
     return base_dir
 
 
@@ -1171,6 +1176,12 @@ def cmd_init_project(target_path=None, tpl_dir=None, flag_git_root=False):
         pf_color(f"错误：目标目录无效: {target_path}", M_Color.RED)
         sys.exit(1)
 
+    if not ZCO_CLAUDE_CONFIG_FILE.exists():
+        pf_color(f"  ⚠️  全局配置文件不存在: {ZCO_CLAUDE_CONFIG_FILE}", M_Color.YELLOW)
+        generate_global_settings(ZCO_CLAUDE_TPL_DIR)
+    else:
+        pf_color(f"  ✔️  全局配置文件存在: {ZCO_CLAUDE_CONFIG_FILE}", M_Color.GREEN)
+        
     # ; 生成项目本地配置
     print("生成项目本地配置...\n")
     generate_project_settings(target_path)
@@ -1617,7 +1628,14 @@ def main():
     # ; 定义有效的子命令
     valid_commands = {'init', 'list-linked-repos', 'fix-linked-repos', 'fix'}
 
-    if not argv:
+    # ; 处理帮助请求（在手动检查之前）
+    if '--help' in argv or '-h' in argv:
+        # ; 如果有子命令的帮助请求，让 argparse 处理
+        # ; 如果只是 --help / -h，显示主帮助
+        if not argv or (len(argv) == 1 and argv[0] in ('--help', '-h')):
+            pass  # ; 继续执行到 parser.print_help()
+        # ; 否则让 argparse 正常处理子命令帮助
+    elif not argv:
         cmd_init_global(tpl_dir=ZCO_CLAUDE_TPL_DIR)
         sys.exit(0)
     elif argv[0] not in valid_commands:
