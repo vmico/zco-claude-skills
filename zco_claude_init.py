@@ -1594,27 +1594,30 @@ def main():
     parser = argparse.ArgumentParser(
         description="Claude Code 配置管理工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
 常用使用示例:
 1. 初始化全局配置:
    %(prog)s init
 
 2. 初始化当前项目:
-   %(prog)s init .
+   %(prog)s init . [--tpl TPL_DIR] [--git-root]
 
 3. 列出已链接项目:
-   %(prog)s list-linked-repos
+   %(prog)s list-linked-repos [--record-file RECORD_FILE]
 
 4. 修复已链接项目的软链接:
-   %(prog)s fix-linked-repos
+   %(prog)s fix-linked-repos [--record-file RECORD_FILE]
 
 5. 修复项目配置:
-   %(prog)s fix /path/to/target/project
+   %(prog)s fix /path/to/target/project [--tpl TPL_DIR]
 
 说明:
   - init . : 在当前目录初始化 .claude/ 配置
   - list-linked-repos: 显示所有已初始化的项目列表
   - fix-linked-repos: 检查并修复所有软链接
+  - 当前版本: %(prog)s {VERSION}
+  - 默认模板(TPL_DIR): {ZCO_CLAUDE_TPL_DIR}
+  - 默认汇总(RECORD_FILE): {ZCO_CLAUDE_RECORD_FILE}
   - 更多帮助请参考: %(prog)s <command> --help
     eg: %(prog)s init --help
         """
@@ -1622,7 +1625,7 @@ def main():
     parser.add_argument(
         "--version",
         action="version",
-        version=f"%(prog)s {VERSION}"
+        version=f"{VERSION}"
     )
 
     # ; 创建子命令解析器
