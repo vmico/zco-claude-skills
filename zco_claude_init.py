@@ -27,10 +27,11 @@ import json
 import shutil
 import difflib
 import subprocess
+import hashlib
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.1.4.260212"
+VERSION = "v0.1.5.260304"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 # ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -1100,6 +1101,39 @@ def cmd_init_global(tpl_dir=None):
         pf_color("\n⚠️  配置生成失败或被取消。", M_Color.YELLOW)
 
 
+def make_hist_dir(project_dir: Path = None, enable_symlink: bool = True) -> Path:
+    """获取历史记录目录"""
+    hist_dir_name = os.environ.get('ZCO_CHAT_SAVE_DIR', None)
+    git_root = get_git_root(project_dir)
+    if not hist_dir_name:
+        hist_dir = git_root / '_.zco_hist'
+    else:
+        hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
+    hist_home = make_hist_home(project_dir)
+    if not hist_dir.exists():
+        if not enable_symlink:
+            hist_dir.mkdir(exist_ok=True)
+        else:
+            hist_home.symlink_to(hist_dir)
+    else:
+        if enable_symlink:
+            if hist_dir.resolve() != hist_home.resolve():
+                ## mv old symlink to old_hist
+                hist_dir.rename(hist_home.with_suffix('.bak'))
+                hist_home.symlink_to(hist_dir)
+    return hist_dir
+
+
+def make_hist_home(project_dir: Path = None) -> Path:
+    """获取历史记录目录"""
+    git_root = get_git_root(project_dir)
+    git_root_hash = hashlib.md5(str(git_root).encode()).hexdigest()[:8]
+    git_name = git_root.name + '_' + git_root_hash
+    base_dir = Path.home() / ".claude" / 'zco_hist' / git_name
+    base_dir.mkdir(exist_ok=True)
+    return base_dir
+
+
 def cmd_init_project(target_path=None, tpl_dir=None, flag_git_root=False):
     """
     子命令: init - 初始化项目的 .claude/ 配置
@@ -1130,7 +1164,7 @@ def cmd_init_project(target_path=None, tpl_dir=None, flag_git_root=False):
     pf_color("\n📋 模式: 初始化项目", M_Color.CYAN)
     print(f"目标项目：{target_path}")
     print(f"模板目录：{source_abs}")
-    print(f"项目配置：{target_path}/.claude/settings.local.json\n")
+    print(f"项目配置：{target_path}/.claude/settings.local.json \n")
 
     # ; 验证目标目录
     if not target_path.exists() or not target_path.is_dir():
@@ -1141,6 +1175,11 @@ def cmd_init_project(target_path=None, tpl_dir=None, flag_git_root=False):
     print("生成项目本地配置...\n")
     generate_project_settings(target_path)
 
+    
+    make_hist_dir(target_path)
+    # ; 生成项目本地配置
+    print("生成 ZCO_HIST 目录...\n")
+    
     # ; 创建目标 .claude 目录
     target_claude_dir = target_path / ".claude"
     target_claude_dir.mkdir(exist_ok=True)
@@ -1586,10 +1625,10 @@ def main():
         pf_color(f"提示：参考命令: {valid_commands}", M_Color.YELLOW)
         pf_color(f"更多帮助: {sys.argv[0]} --help", M_Color.GREEN)
         sys.exit(0)
-    
+
     # ; 创建主解析器
     parser = argparse.ArgumentParser(
-        description="Claude Code 配置管理工具",
+        description=f"Claude Code 配置管理工具 (Version: {VERSION})" ,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 常用使用示例:
