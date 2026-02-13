@@ -5,12 +5,12 @@
 #   make uninstall - Remove installed binary
 
 # Configuration
-SCRIPT_NAME := zco_claude_init.py
 SCRIPT_COMM := zco-claude
-DST_DIR := $(HOME)/.local/bin
-DST_PATH := $(DST_DIR)/$(SCRIPT_COMM)
-SRC_PATH := $(realpath $(SCRIPT_NAME))
-VERSION := $(shell python3 $(SCRIPT_NAME) --version 2>/dev/null || echo "unknown")
+SCRIPT_NAME := zco_claude_init.py
+SOURCE_FILE := $(shell realpath $(SCRIPT_NAME))
+INSTALL_DIR := $(HOME)/.local/bin
+INSTALL_DEST := $(INSTALL_DIR)/$(SCRIPT_COMM)
+X_VERSION := $(shell python3 $(SCRIPT_NAME) --version 2>/dev/null || echo "unknown")
 
 # Colors for output
 GREEN := \033[32m
@@ -27,16 +27,17 @@ all: info
 info:
 	@echo "$(GREEN)zco_claude_init.py Installation Makefile$(RESET)"
 	@echo ""
-	@echo "Source:      $(SRC_PATH)"
-	@echo "Version:     $(VERSION)"
-	@echo "Install dir: $(DST_DIR)"
-	@echo "Target:      $(DST_PATH)"
+	@echo "Script:      $(SCRIPT_NAME)"
+	@echo "Version:     $(X_VERSION)"
+	@echo "Source:      $(SOURCE_FILE)"
+	@echo "InstallDir:  $(INSTALL_DIR)"
+	@echo "InstallDest: $(INSTALL_DEST)"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make install          - Copy script to $(DST_DIR)"
-	@echo "  make link             - Create symlink in $(DST_DIR)"
+	@echo "  make install          - Copy script to $(INSTALL_DIR)"
+	@echo "  make link             - Create symlink in $(INSTALL_DIR)"
 	@echo "  make link-dev         - Create symlink as $(SCRIPT_COMM)-dev"
-	@echo "  make uninstall        - Remove $(DST_PATH)"
+	@echo "  make uninstall        - Remove $(INSTALL_DEST)"
 	@echo "  make twine-pypi-local - Build and check package locally"
 	@echo "  make twine-pypi-upload - Upload to PyPI production server"
 	@echo "  make help             - Show this help message"
@@ -52,41 +53,41 @@ check-source:
 
 # Create destination directory if needed
 check-dir:
-	@mkdir -p $(DST_DIR)
-	@echo "$(BLUE)[check]$(RESET) Directory ready: $(DST_DIR)"
+	@mkdir -p $(INSTALL_DIR)
+	@echo "$(BLUE)[check]$(RESET) Directory ready: $(INSTALL_DIR)"
 
 # Check and update PATH
 check-path:
-	@if ! echo "$(PATH)" | grep -q "$(DST_DIR)"; then \
-		echo "$(YELLOW)[warn]$(RESET) PATH does not contain: $(DST_DIR)"; \
+	@if ! echo "$(PATH)" | grep -q "$(INSTALL_DIR)"; then \
+		echo "$(YELLOW)[warn]$(RESET) PATH does not contain: $(INSTALL_DIR)"; \
 		if [ -f "$(HOME)/.bashrc" ]; then \
-			echo "export PATH=$(DST_DIR):\$$PATH" >> "$(HOME)/.bashrc"; \
+			echo "export PATH=$(INSTALL_DIR):\$$PATH" >> "$(HOME)/.bashrc"; \
 			echo "$(GREEN)[fixed]$(RESET) Added to ~/.bashrc"; \
 		fi; \
 		if [ -f "$(HOME)/.zshrc" ]; then \
-			echo "export PATH=$(DST_DIR):\$$PATH" >> "$(HOME)/.zshrc"; \
+			echo "export PATH=$(INSTALL_DIR):\$$PATH" >> "$(HOME)/.zshrc"; \
 			echo "$(GREEN)[fixed]$(RESET) Added to ~/.zshrc"; \
 		fi; \
 	else \
-		echo "$(BLUE)[check]$(RESET) PATH already contains: $(DST_DIR)"; \
+		echo "$(BLUE)[check]$(RESET) PATH already contains: $(INSTALL_DIR)"; \
 	fi
 
 # Remove existing installation
 remove-existing:
-	@if [ -L "$(DST_PATH)" ]; then \
-		echo "$(YELLOW)[warn]$(RESET) Removing existing symlink: $(DST_PATH)"; \
-		rm -f "$(DST_PATH)"; \
-	elif [ -f "$(DST_PATH)" ]; then \
-		echo "$(YELLOW)[warn]$(RESET) Removing existing file: $(DST_PATH)"; \
-		rm -f "$(DST_PATH)"; \
+	@if [ -L "$(INSTALL_DEST)" ]; then \
+		echo "$(YELLOW)[warn]$(RESET) Removing existing symlink: $(INSTALL_DEST)"; \
+		rm -f "$(INSTALL_DEST)"; \
+	elif [ -f "$(INSTALL_DEST)" ]; then \
+		echo "$(YELLOW)[warn]$(RESET) Removing existing file: $(INSTALL_DEST)"; \
+		rm -f "$(INSTALL_DEST)"; \
 	fi
 
 # Install by copying the file
 install: check-source check-dir remove-existing
-	@echo "$(BLUE)[install]$(RESET) Copying $(SCRIPT_NAME) to $(DST_PATH)..."
-	@cp "$(SCRIPT_NAME)" "$(DST_PATH)"
-	@chmod +x "$(DST_PATH)"
-	@echo "$(GREEN)[done]$(RESET) Installed: $(DST_PATH)"
+	@echo "$(BLUE)[install]$(RESET) Copying $(SCRIPT_NAME) to $(INSTALL_DEST)..."
+	@cp "$(SCRIPT_NAME)" "$(INSTALL_DEST)"
+	@chmod +x "$(INSTALL_DEST)"
+	@echo "$(GREEN)[done]$(RESET) Installed: $(INSTALL_DEST)"
 	@$(MAKE) check-path
 	@echo ""
 	@echo "$(GREEN)Installation complete!$(RESET)"
@@ -94,9 +95,9 @@ install: check-source check-dir remove-existing
 
 # Install by creating a symlink
 link: check-source check-dir remove-existing
-	@echo "$(BLUE)[link]$(RESET) Creating symlink: $(DST_PATH) -> $(SRC_PATH)"
-	@ln -s "$(SRC_PATH)" "$(DST_PATH)"
-	@echo "$(GREEN)[done]$(RESET) Linked: $(DST_PATH)"
+	@echo "$(BLUE)[link]$(RESET) Creating symlink: $(INSTALL_DEST) -> $(SOURCE_FILE)"
+	@ln -s "$(SOURCE_FILE)" "$(INSTALL_DEST)"
+	@echo "$(GREEN)[done]$(RESET) Linked: $(INSTALL_DEST)"
 	@$(MAKE) check-path
 	@echo ""
 	@echo "$(GREEN)Linking complete!$(RESET)"
@@ -104,7 +105,7 @@ link: check-source check-dir remove-existing
 
 # Install by creating a symlink (dev version) - reuses link target
 link-dev:
-	@$(MAKE) link SCRIPT_COMM=$(SCRIPT_COMM)-dev DST_PATH=$(DST_DIR)/$(SCRIPT_COMM)-dev
+	@$(MAKE) link SCRIPT_COMM=$(SCRIPT_COMM)-dev INSTALL_DEST=$(INSTALL_DIR)/$(SCRIPT_COMM)-dev
 
 # Clean build artifacts
 clean:
@@ -113,7 +114,21 @@ clean:
 	@echo "$(GREEN)[done]$(RESET) Clean complete"
 	@rm -rf __pycache_
 
+# Uninstall the binary
+uninstall:
+	@if [ -L "$(INSTALL_DEST)" ] || [ -f "$(INSTALL_DEST)" ]; then \
+		echo "$(BLUE)[uninstall]$(RESET) Removing: $(INSTALL_DEST)"; \
+		rm -f "$(INSTALL_DEST)"; \
+		echo "$(GREEN)[done]$(RESET) Uninstalled: $(INSTALL_DEST)"; \
+	else \
+		echo "$(YELLOW)[warn]$(RESET) Not found: $(INSTALL_DEST)"; \
+	fi
+	@if python3 -c "import zco_claude_init" 2>/dev/null; then \
+		python3 -m pip uninstall zco-claude -y; \
+		echo "$(GREEN)[done]$(RESET) Uninstalled: zco-claude"; \
+	fi
 
+####################################################
 # Build package for PyPI
 build-dist-v1: clean
 	@echo "$(BLUE)[build]$(RESET) Building package with python3 -m build ..."
@@ -147,16 +162,3 @@ twine-pypi-upload: build-dist-v2
 	@python3 -m twine upload dist/*
 	@echo "$(GREEN)[done]$(RESET) Upload to production server complete"
 
-# Uninstall the binary
-uninstall:
-	@if [ -L "$(DST_PATH)" ] || [ -f "$(DST_PATH)" ]; then \
-		echo "$(BLUE)[uninstall]$(RESET) Removing: $(DST_PATH)"; \
-		rm -f "$(DST_PATH)"; \
-		echo "$(GREEN)[done]$(RESET) Uninstalled: $(DST_PATH)"; \
-	else \
-		echo "$(YELLOW)[warn]$(RESET) Not found: $(DST_PATH)"; \
-	fi
-	@if python3 -c "import zco_claude_init" 2>/dev/null; then \
-		python3 -m pip uninstall zco-claude -y; \
-		echo "$(GREEN)[done]$(RESET) Uninstalled: zco-claude"; \
-	fi

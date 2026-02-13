@@ -18,6 +18,18 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 
+def get_hist_dir(project_dir: Path = None) -> Path:
+    """获取历史记录目录"""
+    hist_dir_name = os.environ.get('ZCO_CHAT_SAVE_DIR', None)
+    git_root = get_git_root(project_dir)
+    if not hist_dir_name:
+        hist_dir = git_root / '_.zco_hist'
+    else:
+        hist_dir = os.path.abspath(os.path.join(str(git_root), hist_dir_name))
+    hist_dir.mkdir(exist_ok=True)
+    return hist_dir
+
+
 def get_git_root() -> Path:
     """##;获取 Git 仓库根目录"""
     try:
@@ -292,7 +304,7 @@ def generate_summary(
         lines.append("## 📁 涉及文件汇总")
         lines.append("")
 
-        for f in sorted(all_files)[:50]:  ##;最多显示 50 个
+        for f in sorted(all_files)[:50]:  # ;最多显示 50 个
             lines.append(f"- `{f}`")
 
         if len(all_files) > 50:
@@ -340,7 +352,8 @@ def main():
     git_root = get_git_root()
 
     ##;查找 _.zco_hist 目录
-    hist_dir = git_root / "_.zco_hist"
+    ## hist_dir = git_root / "_.zco_hist"
+    hist_dir = get_hist_dir(git_root)
     if not hist_dir.exists():
         print(f"##;@ERROR: 未找到对话目录: {hist_dir}")
         print("请先启用对话保存功能并执行一些对话。")
@@ -364,7 +377,7 @@ def main():
     markdown_content, stats = generate_summary(files, start_date, end_date)
 
     ##;确定输出目录
-    output_dir = Path(os.environ.get("AICO_DOCS", "."))
+    output_dir = Path(os.environ.get("AICO_DOCS", git_root / "AICO_DOCS"))
     output_dir.mkdir(parents=True, exist_ok=True)
 
     ##;生成文件名
