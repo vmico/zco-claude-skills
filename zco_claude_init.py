@@ -30,7 +30,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "v0.1.3.260212"
+VERSION = "v0.1.4.260212"
 ZCO_CLAUDE_ROOT = os.path.dirname(os.path.realpath(__file__))
 # ZCO_CLAUDE_TPL_DIR = os.path.join(ZCO_CLAUDE_ROOT, "ClaudeSettings")
 ZCO_CLAUDE_TPL_DIR = Path(ZCO_CLAUDE_ROOT) / "ClaudeSettings"
@@ -1578,18 +1578,15 @@ def main():
     # ; 定义有效的子命令
     valid_commands = {'init', 'list-linked-repos', 'fix-linked-repos', 'fix'}
 
-    if argv and argv[0] not in valid_commands and not argv[0].startswith('-'):
-        # ; 第一个参数既不是子命令也不是选项，可能是路径
-        # ; 但需要排除 help 和 version
-        if argv[0] not in ('-h', '--help', '--version'):
-            # ; 检查是否是有效的路径
-            potential_path = Path(argv[0])
-            if potential_path.exists() and potential_path.is_dir():
-                is_legacy = True
-            elif '/' in argv[0] or argv[0].startswith('.'):
-                # ; 包含路径分隔符或以 . 开头，可能是路径
-                is_legacy = True
-
+    if not argv:
+        cmd_init_global(tpl_dir=ZCO_CLAUDE_TPL_DIR)
+        sys.exit(0)
+    elif argv[0] not in valid_commands:
+        pf_color(f"错误：无效命令: {argv[0]}, 请输入有效命令", M_Color.RED)
+        pf_color(f"提示：参考命令: {valid_commands}", M_Color.YELLOW)
+        pf_color(f"更多帮助: {sys.argv[0]} --help", M_Color.GREEN)
+        sys.exit(0)
+    
     # ; 创建主解析器
     parser = argparse.ArgumentParser(
         description="Claude Code 配置管理工具",

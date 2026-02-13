@@ -146,7 +146,7 @@ del-tag:
 # Build package for PyPI
 build-dist-v0: clean
 	@echo "$(BLUE)[build]$(RESET) Building package with python3 setup.py sdist ..."
-	python3 setup.py sdist bdist_wheel;
+	python3 setup.py sdist bdist_wheel
 	@echo "$(GREEN)[done]$(RESET) Build complete"
 
 build-dist-v1: clean
@@ -160,7 +160,7 @@ build-dist-v1: clean
 # Build package for PyPI
 build-dist-v2: clean
 	@echo "$(BLUE)[build]$(RESET) Building package with python3 setup.py sdist ..."
-	export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple && uv build;
+	export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple && uv build
 	@echo "$(GREEN)[done]$(RESET) Build complete"
 
 # Build and check package locally (without upload)
