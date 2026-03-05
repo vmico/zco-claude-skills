@@ -1,0 +1,130 @@
+
+
+# CPP-Build 动态编译版本管理
+
+-- release at: 2026-03-05
+
+## 说明
+
+C++ 释放的二进制文件应通过编译期宏注入，携带版本、Git 提交记录、构建时间等信息，并通过 `gflags` 或自定义解析器输出。 
+
+## 实现步骤
+
+#### 1. 代码端：定义宏接收与变量绑定
+
+在 C++ 源码中，利用预处理器宏接收来自 CMake 的变量，并配合 `gflags` 提供命令行查询。
+
+```cpp
+#include <iostream>
+#include <gflags/gflags.h>
+
+// --- 预处理宏转换工具 ---
+#ifndef YJMacro
+#define YJMacro(str) #str
+#define YJString(macro) YJMacro(macro)
+#endif
+
+// --- 定义接收编译期注入值的变量 ---
+// 如果编译时未定义，则提供默认值 "unset"
+#ifndef YJ_PROTO_VERSION
+    #define YJ_PROTO_VERSION unset
+#endif
+
+#ifndef YJ_RELEASE_INFO
+    #define YJ_RELEASE_INFO unset
+#endif
+
+// --- 绑定到 gflags (参考截图中的 DEFINE_string 逻辑) ---
+DEFINE_string(yj_proto_version, YJString(YJ_PROTO_VERSION), "Protocol version info");
+DEFINE_string(yj_release_info, YJString(YJ_RELEASE_INFO), "Full release version and build info");
+
+void print_version_info() {
+    std::cout << "AppName: " << "YourApp" << std::endl;
+    std::cout << "Proto Version: " << FLAGS_yj_proto_version << std::endl;
+    std::cout << "Release Info: " << FLAGS_yj_release_info << std::endl;
+}
+
+int main(int argc, char** argv) {
+    gflags::SetUsageMessage("Display build version information");
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+    // 逻辑参考 Go 版的 co_parse_flag
+    if (/* 判断逻辑，如 --version 或特殊 flag */ false) {
+        print_version_info();
+        return 0;
+    }
+
+    [cite_start]// 原业务逻辑代码 [cite: 5]
+    return 0;
+}
+
+```
+
+#### 2. 构建系统：CMake 动态注入
+
+在 `CMakeLists.txt` 中通过 `add_definitions` 将外部环境变量转换为 C++ 宏。 
+
+```cmake
+# --- 从环境变量获取版本信息 (对应截图右侧逻辑) ---
+if(NOT DEFINED ENV{YJ_PROTO_VERSION})
+    set(YJ_PROTO_VERSION "unknown")
+else()
+    set(YJ_PROTO_VERSION $ENV{YJ_PROTO_VERSION})
+endif()
+
+if(NOT DEFINED ENV{YJ_RELEASE_INFO})
+    set(YJ_RELEASE_INFO "sim_v2.default_build")
+else()
+    set(YJ_RELEASE_INFO $ENV{YJ_RELEASE_INFO})
+endif()
+
+# --- 注入宏定义到编译器 ---
+add_definitions(-DYJ_PROTO_VERSION=${YJ_PROTO_VERSION})
+add_definitions(-DYJ_RELEASE_INFO=${YJ_RELEASE_INFO})
+
+message(STATUS "Build with Proto Version: ${YJ_PROTO_VERSION}")
+message(STATUS "Build with Release Info: ${YJ_RELEASE_INFO}")
+
+```
+
+#### 3. 自动化脚本：编译期注入值 (Shell/Build.sh)
+
+在执行编译前，通过 Shell 获取 Git 和时间信息，并导出为环境变量供 CMake 使用。 
+
+```bash
+#!/bin/bash
+
+# 1. 提取 Git 信息 (参考截图右下角逻辑)
+export YJ_PROTO_VERSION="1.3.22:$(cat ./conanfile.txt | grep protobuf | awk '{print $2}')"
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "id")
+BUILD_TIME=$(date +'%Y%m%d_%H%M%S')
+
+# 2. 拼接完整的 Release 信息
+export YJ_RELEASE_INFO="sim_cv22.${BUILD_TIME}.${GIT_COMMIT}.release"
+
+# 3. 执行编译
+mkdir -p build && cd build
+cmake ..
+make -j$(nproc)
+
+```
+
+#### 4. 测试
+
+```shell
+# 运行二进制并查看版本 (对应截图左侧输出)
+./your_app --help
+./your_app --yj_release_info
+
+```
+
+---
+
+** 这套方案完美复刻了您在 C++ 生产环境中的实践：**
+
+* **宏转换技巧**：使用了您截图中的 `YJMacro` 双重宏技术，确保将编译参数正确转换为字符串字面量。
+* 
+**环境变量桥接**：通过 `Build.sh` -> `CMake` -> `C++ Macro` 的链路，实现了与 Go 版 `-ldflags` 异曲同工的动态注入效果。 
+
+
+
