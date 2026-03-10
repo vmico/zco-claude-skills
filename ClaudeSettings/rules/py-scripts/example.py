@@ -57,19 +57,26 @@ class M_ColorLevel:
     RESET = M_Color.RESET
 
 
-def pf_color(msg: str, *ms, color_code: str = M_Color.GREEN):
+def pf_color(msg: str, color_code: str = M_Color.GREEN):
     # 先判断当前是否是在终端环境
+    if not sys.stdout.isatty():
+        print(msg)
+    else:
+        print(color_code, msg, M_Color.RESET)
+
+
+def pf_debug(msg: str, *ms, color_code: str = M_Color.GREEN):
+    """
+    ## usage samples:
+        pf_debug("debug message", "arg1", "arg2")
+        pf_debug("debug message", "arg1", "arg2", color_code=M_Color.CYAN)
+    """
     if not sys.stdout.isatty():
         print(msg)
     elif ms:
         print(color_code, msg, M_ColorLevel.DEBUG, *ms, M_Color.RESET)
     else:
         print(color_code, msg, M_Color.RESET)
-
-
-def debug(*args):
-    if os.environ.get("DEBUG"):
-        print(*args, M_ColorLevel.DEBUG)
 
 
 def is_git_repo(path: Path) -> bool:
@@ -171,13 +178,13 @@ def cli_main():
         if project_path is None:
             project_path = get_git_root()
         elif not os.path.exists(project_path):
-            pf_color(f"项目路径不存在:", project_path, color_code=M_ColorLevel.S_FAIL)
+            pf_debug(f"项目路径不存在:", project_path, color_code=M_ColorLevel.S_FAIL)
             return
         remote_url = get_git_remote_url(project_dir=project_path, remote_name=args.remote_name)
         if remote_url:
-            pf_color(f"RemoteURL:" , remote_url, color_code=M_ColorLevel.S_OK)
+            pf_debug(f"RemoteURL:" , remote_url, color_code=M_ColorLevel.S_OK)
         else:
-            pf_color(f"未找到远程仓库:", args.remote_name, color_code=M_ColorLevel.S_FAIL)
+            pf_debug(f"未找到远程仓库:", args.remote_name, color_code=M_ColorLevel.S_FAIL)
         return
     
     

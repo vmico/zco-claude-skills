@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-zco_claude_init.py
+%(prog)s
 作用:
   基于 ClaudeSettings 扩展项目的 .claude 配置目录, 快速初始化项目
 
@@ -64,24 +64,25 @@ class M_ColorBg:
     CYAN = "\033[46m"
     RESET = "\033[0m"
 
+class M_ColorLevel:
+    """
+    颜色打印类, 日志级别颜色, log level color
+    """
+    S_OK = M_Color.GREEN
+    S_FAIL = M_Color.MAGENTA
+    DEBUG = M_Color.CYAN
+    INFO = M_Color.BLUE
+    WARN = M_Color.YELLOW
+    ERROR = M_Color.RED
+    RESET = M_Color.RESET
+
 
 def pf_color(msg: str, color_code: str = M_Color.GREEN):
     # 先判断当前是否是在终端环境
     if not sys.stdout.isatty():
         print(msg)
     else:
-        print(f"{color_code}{msg}{M_Color.RESET}")
-
-
-def debug(*args):
-    """
-    调试打印函数
-
-    Args:
-        *args: 要打印的内容
-    """
-    if os.environ.get("DEBUG"):
-        print("DEBUG:", *args)
+        print(color_code, msg, M_Color.RESET)
 
 
 def make_default_config(tpl_dir: Path = ZCO_CLAUDE_TPL_DIR, with_hooks=False):
@@ -1670,6 +1671,29 @@ def cmd_fix(project_path=None, tpl_dir=None, record_file=None):
     print(f"  - 记录已更新")
 
 
+def print_brief_help():
+    """显示简要帮助信息（不含详细示例）"""
+    prog = os.path.basename(sys.argv[0])
+    pf_color(f"{prog}  {VERSION}", color_code=M_Color.GREEN)
+    print(f"\n用法:")
+    print(f"  {prog} <command> [options]")
+    print(f"\n可用命令:")
+    cmds = [
+        ("init",              "初始化项目的 .claude/ 配置"),
+        ("list-linked-repos", "列出所有已链接的项目"),
+        ("fix-linked-repos",  "修复已链接项目的软链接"),
+        ("fix",               "修复指定项目的软链接"),
+    ]
+    for cmd, desc in cmds:
+        pf_color(f"  {cmd:<22} {desc}", color_code=M_Color.CYAN)
+    print(f"\n选项:")
+    print(f"  -h, --help            显示此简要帮助")
+    print(f"  -h --verbose          显示完整帮助（含示例）")
+    print(f"  --help --verbose      同上")
+    print(f"  --version             显示版本号")
+    print(f"\n提示: {prog} <command> --help  查看子命令详情")
+
+
 def main():
     """主函数"""
     ##; 向后兼容：检查第一个参数是否是子命令或路径
@@ -1679,13 +1703,17 @@ def main():
     ##; 定义有效的子命令
     valid_commands = {'init', 'list-linked-repos', 'fix-linked-repos', 'fix'}
 
+    want_verbose = '--verbose' in argv
+
     ##; 处理帮助请求（在手动检查之前）
     if '--help' in argv or '-h' in argv:
-        ##; 如果有子命令的帮助请求，让 argparse 处理
-        ##; 如果只是 --help / -h，显示主帮助
-        if not argv or (len(argv) == 1 and argv[0] in ('--help', '-h')):
-            pass  ##; 继续执行到 parser.print_help()
-        ##; 否则让 argparse 正常处理子命令帮助
+        if not want_verbose:
+            ##; 无 --verbose: 显示简要帮助后退出
+            print_brief_help()
+            sys.exit(0)
+        ##; 有 --verbose: 移除 --verbose，由 argparse 显示完整帮助
+        argv = [a for a in argv if a != '--verbose']
+        sys.argv = [sys.argv[0]] + argv
     elif not argv:
         cmd_init_global(tpl_dir=ZCO_CLAUDE_TPL_DIR)
         sys.exit(0)
@@ -1697,9 +1725,9 @@ def main():
 
     ##; 创建主解析器
     parser = argparse.ArgumentParser(
-        description=f"Claude Code 配置管理工具 (Version: {VERSION})" ,
+        description=f"{M_Color.GREEN} %(prog)s (Version: {VERSION}) {M_Color.RESET}" ,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
+        epilog=f"{M_Color.CYAN} {__doc__} {M_Color.RESET}\n" + f"""
 常用使用示例:
 1. 初始化全局配置:
    %(prog)s init
